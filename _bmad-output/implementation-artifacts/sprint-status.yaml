@@ -49,7 +49,7 @@ development_status:
   1-5-efficiency-evaluator: done
   1-6-result-persistence: done
   1-7-terminal-reporter: done
-  1-8-run-pipeline-and-cli-command: backlog
+  1-8-run-pipeline-and-cli-command: done
   1-9-init-command: backlog
   epic-1-retrospective: optional
 
