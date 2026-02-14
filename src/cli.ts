@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { runPipeline } from './core/pipeline/run-pipeline.js';
+import { initProject } from './core/init/init-project.js';
 import { ZeldaError } from './core/errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,7 +51,34 @@ program
     }
   });
 
-program.command('init').description('Initialize Zelda in current project');
+program
+  .command('init')
+  .description('Initialize Zelda in current project')
+  .option('-f, --force', 'Overwrite existing config files')
+  .action((opts: { force?: boolean }) => {
+    const result = initProject(process.cwd(), opts.force);
+
+    if (result.configCreated) {
+      process.stdout.write('Created zelda.yaml\n');
+    }
+    if (result.testDirCreated) {
+      process.stdout.write('Created zelda/ directory\n');
+    }
+    if (result.exampleSuiteCreated) {
+      process.stdout.write('Created zelda/test-example.yaml\n');
+    }
+    if (result.gitignoreUpdated) {
+      process.stdout.write('Updated .gitignore with .zelda/\n');
+    }
+
+    for (const warning of result.warnings) {
+      process.stderr.write(`Warning: ${warning}\n`);
+    }
+
+    if (result.configCreated || result.exampleSuiteCreated) {
+      process.stdout.write('\nRun "zelda run example" to try it out.\n');
+    }
+  });
 program.command('compare <run1> <run2>').description('Compare two runs');
 program.command('list').description('List past runs');
 
