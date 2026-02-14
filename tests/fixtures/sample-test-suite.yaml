@@ -1,0 +1,13 @@
+prompt: "Build a REST API endpoint for health checks"
+acceptanceCriteria:
+  - "Endpoint returns 200 on GET /api/health"
+  - "Response includes JSON body with status field"
+  - "Response includes uptime in seconds"
+execution:
+  model: claude-sonnet-4-5-20250929
+  maxTurns: 10
+metrics:
+  functionalCorrectness: false
+buildCommand: npm run build
+testCommand: npm test
+coverageThreshold: 80

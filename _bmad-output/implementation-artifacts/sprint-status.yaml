@@ -43,7 +43,7 @@ development_status:
   # Epic 1: First Evaluation Run
   epic-1: in-progress
   1-1-project-scaffolding-and-foundation-types: done
-  1-2-configuration-system: backlog
+  1-2-configuration-system: done
   1-3-workspace-isolation: backlog
   1-4-claude-code-execution: backlog
   1-5-efficiency-evaluator: backlog
