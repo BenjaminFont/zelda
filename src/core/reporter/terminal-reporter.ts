@@ -3,6 +3,7 @@
 import chalk from 'chalk';
 import type { EvalResult, RunResult } from '../types.js';
 import type { EfficiencyDetails } from '../evaluators/efficiency.js';
+import type { FulfillmentDetails } from '../evaluators/fulfillment.js';
 
 const LABEL_WIDTH = 16;
 
@@ -65,8 +66,29 @@ const renderEfficiency = (result: EvalResult): string => {
   return lines.join('\n');
 };
 
+const renderFulfillment = (result: EvalResult): string => {
+  const details = result.details as FulfillmentDetails;
+  const lines: string[] = [];
+
+  lines.push(sectionHeader('Requirement Fulfillment'));
+  lines.push(`  ${chalk.cyan(padLabel('Score'))} ${formatScore(result.score)} (${details.passedCount}/${details.totalCount})`);
+
+  for (const criterion of details.criteria) {
+    if (criterion.passed) {
+      lines.push(`  ${chalk.green('PASS')}  ${criterion.criterion}`);
+      lines.push(`         ${chalk.dim(criterion.reasoning)}`);
+    } else {
+      lines.push(`  ${chalk.red('FAIL')}  ${criterion.criterion}`);
+      lines.push(`         ${criterion.reasoning}`);
+    }
+  }
+
+  return lines.join('\n');
+};
+
 const metricRenderers: Record<string, (result: EvalResult) => string> = {
   efficiency: renderEfficiency,
+  requirementFulfillment: renderFulfillment,
 };
 
 const renderMetric = (result: EvalResult): string => {

@@ -226,7 +226,7 @@ describe('reporter/terminal-reporter', () => {
       expect(stripAnsi(renderEvalResult(high))).toContain('90.0%');
     });
 
-    it('displays error count zero distinctly from non-zero', () => {
+    it('displays error count zero distinctly from non-zero (efficiency)', () => {
       const zeroErrors = makeEfficiencyResult();
       const withErrors = makeEfficiencyResult({
         details: {
@@ -245,6 +245,90 @@ describe('reporter/terminal-reporter', () => {
       expect(zeroOutput).toContain('Errors');
       expect(errorOutput).toContain('Errors');
       expect(errorOutput).toContain('3');
+    });
+  });
+
+  describe('renderEvalResult (fulfillment)', () => {
+    const makeFulfillmentResult = (overrides?: Partial<EvalResult>): EvalResult => ({
+      metric: 'requirementFulfillment',
+      score: 66.7,
+      details: {
+        criteria: [
+          { criterion: 'GET /api/hello returns 200', passed: true, reasoning: 'Endpoint works correctly' },
+          { criterion: 'Response is valid JSON', passed: true, reasoning: 'Valid JSON returned' },
+          { criterion: 'Unit tests pass', passed: false, reasoning: '2 of 5 tests fail' },
+        ],
+        passedCount: 2,
+        totalCount: 3,
+      },
+      reasoning: '2/3 criteria passed.',
+      ...overrides,
+    });
+
+    it('shows section header "Requirement Fulfillment"', () => {
+      const output = stripAnsi(renderEvalResult(makeFulfillmentResult()));
+      expect(output).toContain('Requirement Fulfillment');
+    });
+
+    it('shows overall score as percentage', () => {
+      const output = stripAnsi(renderEvalResult(makeFulfillmentResult()));
+      expect(output).toContain('66.7%');
+    });
+
+    it('shows pass count fraction', () => {
+      const output = stripAnsi(renderEvalResult(makeFulfillmentResult()));
+      expect(output).toContain('2/3');
+    });
+
+    it('shows PASS for passing criteria', () => {
+      const output = stripAnsi(renderEvalResult(makeFulfillmentResult()));
+      expect(output).toContain('PASS');
+      expect(output).toContain('GET /api/hello returns 200');
+    });
+
+    it('shows FAIL for failing criteria', () => {
+      const output = stripAnsi(renderEvalResult(makeFulfillmentResult()));
+      expect(output).toContain('FAIL');
+      expect(output).toContain('Unit tests pass');
+    });
+
+    it('shows reasoning for each criterion', () => {
+      const output = stripAnsi(renderEvalResult(makeFulfillmentResult()));
+      expect(output).toContain('Endpoint works correctly');
+      expect(output).toContain('2 of 5 tests fail');
+    });
+
+    it('contains no emoji characters', () => {
+      const output = renderEvalResult(makeFulfillmentResult());
+      const emojiPattern = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+      expect(emojiPattern.test(output)).toBe(false);
+    });
+  });
+
+  describe('combined report (efficiency + fulfillment)', () => {
+    it('renders both metric sections', () => {
+      const run = makeRunResult({
+        metrics: {
+          efficiency: makeEfficiencyResult(),
+          requirementFulfillment: {
+            metric: 'requirementFulfillment',
+            score: 80,
+            details: {
+              criteria: [
+                { criterion: 'Works', passed: true, reasoning: 'OK' },
+              ],
+              passedCount: 1,
+              totalCount: 1,
+            },
+            reasoning: '1/1 criteria passed.',
+          },
+        },
+      });
+      const output = stripAnsi(renderRunReport(run));
+      expect(output).toContain('Efficiency');
+      expect(output).toContain('Requirement Fulfillment');
+      expect(output).toContain('85.0%');
+      expect(output).toContain('80.0%');
     });
   });
 });
