@@ -2,7 +2,9 @@
 // Identifies used tools, missed tools, and overall utilization score
 
 import { judgeQuery } from '../judge/judge-client.js';
-import type { Evaluator, EvalContext, EvalResult, ToolEntry } from '../types.js';
+import { chunkTranscript, needsChunking } from '../transcript/chunker.js';
+import { synthesizeToolUsage } from '../transcript/synthesizer.js';
+import type { Evaluator, EvalContext, EvalResult, ToolEntry, TranscriptMessage } from '../types.js';
 
 export type ToolUsageDetails = {
   usedTools: { name: string; count: number }[];
@@ -47,8 +49,8 @@ const formatManifest = (context: EvalContext): string => {
     : 'No tools configured.';
 };
 
-const buildUserPrompt = (context: EvalContext): string => {
-  const transcriptSummary = context.transcript.messages
+const formatMessages = (messages: TranscriptMessage[]): string =>
+  messages
     .map((m) => {
       let text = `[${m.role}]: ${m.content}`;
       if (m.toolCalls && m.toolCalls.length > 0) {
@@ -58,6 +60,9 @@ const buildUserPrompt = (context: EvalContext): string => {
       return text;
     })
     .join('\n\n');
+
+const buildUserPrompt = (context: EvalContext, messages?: TranscriptMessage[]): string => {
+  const transcriptSummary = formatMessages(messages ?? context.transcript.messages);
 
   return `## Available Tools Manifest
 
@@ -128,38 +133,52 @@ export const toolUsageEvaluator: Evaluator = async (
     };
   }
 
-  const response = await judgeQuery(
-    {
-      gatewayUrl: config.gatewayUrl,
-      maxRetries: 3,
-    },
-    {
-      systemPrompt: buildSystemPrompt(),
-      userPrompt: buildUserPrompt(context),
-      model: config.judgeModel,
-    },
-  );
+  const evaluateChunk = async (messages: TranscriptMessage[]): Promise<ToolUsageDetails> => {
+    const response = await judgeQuery(
+      {
+        gatewayUrl: config.gatewayUrl,
+        maxRetries: 3,
+      },
+      {
+        systemPrompt: buildSystemPrompt(),
+        userPrompt: buildUserPrompt(context, messages),
+        model: config.judgeModel,
+      },
+    );
 
-  const parsed = parseJudgeResponse(response.content);
+    const parsed = parseJudgeResponse(response.content);
+    return {
+      usedTools: parsed.usedTools,
+      missedTools: parsed.missedTools,
+      availableToolCount: totalTools,
+      assessment: parsed.assessment,
+    };
+  };
+
+  let details: ToolUsageDetails;
+
+  if (needsChunking(context.transcript.messages)) {
+    const chunks = chunkTranscript(context.transcript.messages);
+    const chunkResults: ToolUsageDetails[] = [];
+    for (const chunk of chunks) {
+      chunkResults.push(await evaluateChunk(chunk.messages));
+    }
+    details = synthesizeToolUsage(chunkResults);
+  } else {
+    details = await evaluateChunk(context.transcript.messages);
+  }
 
   // Compute score: penalize for missed tools
-  const missedCount = parsed.missedTools.length;
+  const missedCount = details.missedTools.length;
   const score = missedCount === 0
     ? 100
     : Math.max(0, Math.round((1 - missedCount / totalTools) * 100));
-
-  const details: ToolUsageDetails = {
-    usedTools: parsed.usedTools,
-    missedTools: parsed.missedTools,
-    availableToolCount: totalTools,
-    assessment: parsed.assessment,
-  };
 
   return {
     metric: 'toolUsage',
     score,
     details,
-    reasoning: `${parsed.usedTools.length} tools used, ${missedCount} missed out of ${totalTools} available. ${parsed.assessment}`,
+    reasoning: `${details.usedTools.length} tools used, ${missedCount} missed out of ${totalTools} available. ${details.assessment}`,
   };
 };
 

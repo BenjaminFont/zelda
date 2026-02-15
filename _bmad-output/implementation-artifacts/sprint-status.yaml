@@ -80,6 +80,6 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: Transcript Management
-  epic-6: backlog
-  6-1-transcript-chunking-and-synthesis: backlog
+  epic-6: done
+  6-1-transcript-chunking-and-synthesis: done
   epic-6-retrospective: optional

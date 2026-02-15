@@ -2,7 +2,9 @@
 // Sends acceptance criteria + transcript to judge, parses structured response
 
 import { judgeQuery } from '../judge/judge-client.js';
-import type { Evaluator, EvalContext, EvalResult } from '../types.js';
+import { chunkTranscript, needsChunking } from '../transcript/chunker.js';
+import { synthesizeFulfillment } from '../transcript/synthesizer.js';
+import type { Evaluator, EvalContext, EvalResult, TranscriptMessage } from '../types.js';
 
 export type CriterionResult = {
   criterion: string;
@@ -25,10 +27,8 @@ Respond with a JSON array where each element has:
 
 Respond ONLY with the JSON array, no additional text or markdown formatting.`;
 
-const buildUserPrompt = (
-  context: EvalContext,
-): string => {
-  const transcriptSummary = context.transcript.messages
+const formatMessages = (messages: TranscriptMessage[]): string =>
+  messages
     .map((m) => {
       let text = `[${m.role}]: ${m.content}`;
       if (m.toolCalls && m.toolCalls.length > 0) {
@@ -38,6 +38,12 @@ const buildUserPrompt = (
       return text;
     })
     .join('\n\n');
+
+const buildUserPrompt = (
+  context: EvalContext,
+  messages?: TranscriptMessage[],
+): string => {
+  const transcriptSummary = formatMessages(messages ?? context.transcript.messages);
 
   const criteriaList = context.config.acceptanceCriteria
     .map((c, i) => `${i + 1}. ${c}`)
@@ -115,9 +121,10 @@ const parseJudgeResponse = (
   });
 };
 
-export const fulfillmentEvaluator: Evaluator = async (
+const evaluateChunk = async (
   context: EvalContext,
-): Promise<EvalResult> => {
+  messages: TranscriptMessage[],
+): Promise<FulfillmentDetails> => {
   const { config } = context;
 
   const response = await judgeQuery(
@@ -127,7 +134,7 @@ export const fulfillmentEvaluator: Evaluator = async (
     },
     {
       systemPrompt: buildSystemPrompt(),
-      userPrompt: buildUserPrompt(context),
+      userPrompt: buildUserPrompt(context, messages),
       model: config.judgeModel,
     },
   );
@@ -138,16 +145,36 @@ export const fulfillmentEvaluator: Evaluator = async (
   );
 
   const passedCount = criteriaResults.filter((c) => c.passed).length;
-  const totalCount = criteriaResults.length;
-  const score = totalCount > 0 ? Math.round((passedCount / totalCount) * 1000) / 10 : 0;
 
-  const details: FulfillmentDetails = {
+  return {
     criteria: criteriaResults,
     passedCount,
-    totalCount,
+    totalCount: criteriaResults.length,
   };
+};
 
-  const passedList = criteriaResults
+export const fulfillmentEvaluator: Evaluator = async (
+  context: EvalContext,
+): Promise<EvalResult> => {
+  const { transcript } = context;
+
+  let details: FulfillmentDetails;
+
+  if (needsChunking(transcript.messages)) {
+    const chunks = chunkTranscript(transcript.messages);
+    const chunkResults: FulfillmentDetails[] = [];
+    for (const chunk of chunks) {
+      chunkResults.push(await evaluateChunk(context, chunk.messages));
+    }
+    details = synthesizeFulfillment(chunkResults);
+  } else {
+    details = await evaluateChunk(context, transcript.messages);
+  }
+
+  const { passedCount, totalCount, criteria } = details;
+  const score = totalCount > 0 ? Math.round((passedCount / totalCount) * 1000) / 10 : 0;
+
+  const passedList = criteria
     .map((c) => `${c.passed ? 'PASS' : 'FAIL'}: ${c.criterion}`)
     .join('; ');
 
