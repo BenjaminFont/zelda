@@ -68,9 +68,9 @@ development_status:
 
 
   # Epic 4: Functional Correctness Verification
-  epic-4: in-progress
+  epic-4: done
   4-1-build-and-test-runner: done
-  4-2-functional-correctness-terminal-display: ready-for-dev
+  4-2-functional-correctness-terminal-display: done
   epic-4-retrospective: optional
 
   # Epic 5: Compare & Iterate

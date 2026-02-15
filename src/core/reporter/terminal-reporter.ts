@@ -5,6 +5,7 @@ import type { EvalResult, RunResult } from '../types.js';
 import type { EfficiencyDetails } from '../evaluators/efficiency.js';
 import type { FulfillmentDetails } from '../evaluators/fulfillment.js';
 import type { ToolUsageDetails } from '../evaluators/tool-usage.js';
+import type { FunctionalCorrectnessDetails } from '../evaluators/functional-correctness.js';
 
 const LABEL_WIDTH = 16;
 
@@ -116,10 +117,50 @@ const renderToolUsage = (result: EvalResult): string => {
   return lines.join('\n');
 };
 
+const renderFunctionalCorrectness = (result: EvalResult): string => {
+  const details = result.details as FunctionalCorrectnessDetails;
+  const lines: string[] = [];
+
+  lines.push(sectionHeader('Functional Correctness'));
+  lines.push(`  ${chalk.cyan(padLabel('Score'))} ${formatScore(result.score)}`);
+
+  if (details.buildStatus && details.buildStatus !== 'skipped') {
+    const status = details.buildStatus === 'pass'
+      ? chalk.green('PASS')
+      : chalk.red('FAIL');
+    lines.push(`  ${chalk.cyan(padLabel('Build'))} ${status}`);
+  } else if (details.buildStatus === 'skipped') {
+    lines.push(`  ${chalk.cyan(padLabel('Build'))} ${chalk.dim('skipped')}`);
+  }
+
+  if (details.testCounts) {
+    const { passed, failed, total } = details.testCounts;
+    const countText = failed > 0
+      ? `${chalk.green(String(passed))} passed, ${chalk.red(String(failed))} failed (${total} total)`
+      : `${chalk.green(String(passed))} passed (${total} total)`;
+    lines.push(`  ${chalk.cyan(padLabel('Tests'))} ${countText}`);
+  }
+
+  if (details.coveragePercent !== undefined) {
+    const pct = `${details.coveragePercent}%`;
+    const threshold = details.coverageThreshold !== undefined ? ` (threshold: ${details.coverageThreshold}%)` : '';
+    const met = details.coverageMet;
+    const color = met ? chalk.green : chalk.red;
+    lines.push(`  ${chalk.cyan(padLabel('Coverage'))} ${color(pct)}${chalk.dim(threshold)}`);
+  }
+
+  if (result.reasoning) {
+    lines.push(`  ${chalk.dim(result.reasoning)}`);
+  }
+
+  return lines.join('\n');
+};
+
 const metricRenderers: Record<string, (result: EvalResult) => string> = {
   efficiency: renderEfficiency,
   requirementFulfillment: renderFulfillment,
   toolUsage: renderToolUsage,
+  functionalCorrectness: renderFunctionalCorrectness,
 };
 
 const renderMetric = (result: EvalResult): string => {

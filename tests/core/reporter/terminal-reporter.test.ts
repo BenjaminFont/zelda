@@ -397,8 +397,83 @@ describe('reporter/terminal-reporter', () => {
     });
   });
 
-  describe('combined report (all three metrics)', () => {
-    it('renders efficiency, fulfillment, and tool usage sections', () => {
+  describe('renderEvalResult (functionalCorrectness)', () => {
+    const makeFcResult = (overrides?: Partial<EvalResult>): EvalResult => ({
+      metric: 'functionalCorrectness',
+      score: 88,
+      details: {
+        buildStatus: 'pass',
+        testCounts: { passed: 8, failed: 2, total: 10 },
+        coveragePercent: 90,
+        coverageThreshold: 80,
+        coverageMet: true,
+      },
+      reasoning: 'Build: PASS. Tests: 8/10 passed. Coverage: 90%.',
+      ...overrides,
+    });
+
+    it('shows section header "Functional Correctness"', () => {
+      const output = stripAnsi(renderEvalResult(makeFcResult()));
+      expect(output).toContain('Functional Correctness');
+    });
+
+    it('shows overall score', () => {
+      const output = stripAnsi(renderEvalResult(makeFcResult()));
+      expect(output).toContain('88.0%');
+    });
+
+    it('shows build PASS status', () => {
+      const output = stripAnsi(renderEvalResult(makeFcResult()));
+      expect(output).toContain('Build');
+      expect(output).toContain('PASS');
+    });
+
+    it('shows build FAIL status', () => {
+      const result = makeFcResult({
+        details: { buildStatus: 'fail' },
+      });
+      const output = stripAnsi(renderEvalResult(result));
+      expect(output).toContain('FAIL');
+    });
+
+    it('shows test pass/fail counts', () => {
+      const output = stripAnsi(renderEvalResult(makeFcResult()));
+      expect(output).toContain('8');
+      expect(output).toContain('2');
+      expect(output).toContain('10 total');
+    });
+
+    it('shows coverage percentage', () => {
+      const output = stripAnsi(renderEvalResult(makeFcResult()));
+      expect(output).toContain('90%');
+      expect(output).toContain('threshold: 80%');
+    });
+
+    it('shows build skipped when not configured', () => {
+      const result = makeFcResult({
+        score: 100,
+        details: { buildStatus: 'skipped' },
+        reasoning: 'Not configured.',
+      });
+      const output = stripAnsi(renderEvalResult(result));
+      expect(output).toContain('skipped');
+    });
+
+    it('shows reasoning text', () => {
+      const output = stripAnsi(renderEvalResult(makeFcResult()));
+      expect(output).toContain('Build: PASS');
+      expect(output).toContain('Coverage: 90%');
+    });
+
+    it('contains no emoji characters', () => {
+      const output = renderEvalResult(makeFcResult());
+      const emojiPattern = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+      expect(emojiPattern.test(output)).toBe(false);
+    });
+  });
+
+  describe('combined report (all four metrics)', () => {
+    it('renders all four metric sections', () => {
       const run = makeRunResult({
         metrics: {
           efficiency: makeEfficiencyResult(),
@@ -425,15 +500,26 @@ describe('reporter/terminal-reporter', () => {
             },
             reasoning: '1 tool used, 0 missed.',
           },
+          functionalCorrectness: {
+            metric: 'functionalCorrectness',
+            score: 95,
+            details: {
+              buildStatus: 'pass',
+              testCounts: { passed: 10, failed: 0, total: 10 },
+            },
+            reasoning: 'Build: PASS. Tests: 10/10 passed.',
+          },
         },
       });
       const output = stripAnsi(renderRunReport(run));
       expect(output).toContain('Efficiency');
       expect(output).toContain('Requirement Fulfillment');
       expect(output).toContain('Tool Usage');
+      expect(output).toContain('Functional Correctness');
       expect(output).toContain('85.0%');
       expect(output).toContain('80.0%');
       expect(output).toContain('100.0%');
+      expect(output).toContain('95.0%');
     });
   });
 });

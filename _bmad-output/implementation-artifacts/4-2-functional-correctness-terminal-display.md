@@ -1,6 +1,6 @@
 # Story 4.2: Functional Correctness Terminal Display
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,18 +16,19 @@ So that I know immediately whether the generated code compiles and passes tests.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Add functional correctness renderer to terminal reporter (AC: #1, #2)
-  - [ ] 1.1 Add renderFunctionalCorrectness function
-  - [ ] 1.2 Display build status (PASS/FAIL) with color coding
-  - [ ] 1.3 Display test pass/fail counts
-  - [ ] 1.4 Display coverage percentage with threshold comparison
-  - [ ] 1.5 Register in metricRenderers map
-- [ ] Task 2: Write comprehensive tests (AC: #1, #2)
-  - [ ] 2.1 Test build status display
-  - [ ] 2.2 Test test pass/fail counts
-  - [ ] 2.3 Test coverage display
-  - [ ] 2.4 Test combined report with all four metrics
-  - [ ] 2.5 Test no emojis
+- [x] Task 1: Add functional correctness renderer to terminal reporter (AC: #1, #2)
+  - [x] 1.1 Add renderFunctionalCorrectness function
+  - [x] 1.2 Display build status (PASS/FAIL) with color coding
+  - [x] 1.3 Display test pass/fail counts (green passed, red failed)
+  - [x] 1.4 Display coverage percentage with threshold comparison
+  - [x] 1.5 Register in metricRenderers map
+- [x] Task 2: Write comprehensive tests (AC: #1, #2)
+  - [x] 2.1 Test build status display (PASS, FAIL, skipped)
+  - [x] 2.2 Test test pass/fail counts
+  - [x] 2.3 Test coverage display with threshold
+  - [x] 2.4 Test combined report with all four metrics
+  - [x] 2.5 Test no emojis
+  - [x] 2.6 Test reasoning display
 
 ## Dev Notes
 
@@ -57,4 +58,14 @@ Claude Opus 4.6 (claude-opus-4-6)
 
 ### Completion Notes List
 
+- All 231 tests pass (9 new functional correctness display tests)
+- TypeScript compiles cleanly
+- Build: PASS/FAIL with green/red, skipped as dim
+- Tests: green passed count, red failed count, total
+- Coverage: colored by threshold met/not met
+- Epic 4 complete
+
 ### File List
+
+- src/core/reporter/terminal-reporter.ts (modified — added renderFunctionalCorrectness)
+- tests/core/reporter/terminal-reporter.test.ts (modified — 9 new tests)
