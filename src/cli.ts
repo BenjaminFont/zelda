@@ -5,6 +5,9 @@ import { dirname, join } from 'node:path';
 import { runPipeline } from './core/pipeline/run-pipeline.js';
 import { initProject } from './core/init/init-project.js';
 import { ZeldaError } from './core/errors.js';
+import { listRuns, getRun } from './core/storage/result-store.js';
+import { renderRunList } from './core/reporter/list-reporter.js';
+import { loadProjectConfig } from './core/config/loader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -79,7 +82,26 @@ program
       process.stdout.write('\nRun "zelda run example" to try it out.\n');
     }
   });
+program
+  .command('list')
+  .description('List past evaluation runs')
+  .action(() => {
+    try {
+      const configPath = join(process.cwd(), 'zelda.yaml');
+      const config = loadProjectConfig(configPath);
+      const resultsDir = join(process.cwd(), config.resultsDir);
+      const runs = listRuns(resultsDir);
+      process.stdout.write(renderRunList(runs) + '\n');
+    } catch (e) {
+      if (e instanceof ZeldaError) {
+        process.stderr.write(`Error: ${e.userMessage}\n`);
+      } else {
+        process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
+      }
+      process.exit(2);
+    }
+  });
+
 program.command('compare <run1> <run2>').description('Compare two runs');
-program.command('list').description('List past runs');
 
 program.parse();
