@@ -74,9 +74,9 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Compare & Iterate
-  epic-5: in-progress
+  epic-5: done
   5-1-list-and-retrieve-runs: done
-  5-2-compare-command: ready-for-dev
+  5-2-compare-command: done
   epic-5-retrospective: optional
 
   # Epic 6: Transcript Management

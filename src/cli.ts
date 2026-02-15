@@ -8,6 +8,8 @@ import { ZeldaError } from './core/errors.js';
 import { listRuns, getRun } from './core/storage/result-store.js';
 import { renderRunList } from './core/reporter/list-reporter.js';
 import { loadProjectConfig } from './core/config/loader.js';
+import { compareRuns } from './core/compare/compare-runs.js';
+import { renderComparison } from './core/reporter/compare-reporter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -102,6 +104,37 @@ program
     }
   });
 
-program.command('compare <run1> <run2>').description('Compare two runs');
+program
+  .command('compare <run1> <run2>')
+  .description('Compare two evaluation runs side-by-side')
+  .action((run1: string, run2: string) => {
+    try {
+      const configPath = join(process.cwd(), 'zelda.yaml');
+      const config = loadProjectConfig(configPath);
+      const resultsDir = join(process.cwd(), config.resultsDir);
+
+      const runA = getRun(resultsDir, run1);
+      if (!runA) {
+        process.stderr.write(`Error: Run "${run1}" not found.\n`);
+        process.exit(1);
+      }
+
+      const runB = getRun(resultsDir, run2);
+      if (!runB) {
+        process.stderr.write(`Error: Run "${run2}" not found.\n`);
+        process.exit(1);
+      }
+
+      const comparison = compareRuns(runA, runB);
+      process.stdout.write(renderComparison(comparison) + '\n');
+    } catch (e) {
+      if (e instanceof ZeldaError) {
+        process.stderr.write(`Error: ${e.userMessage}\n`);
+      } else {
+        process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
+      }
+      process.exit(2);
+    }
+  });
 
 program.parse();
