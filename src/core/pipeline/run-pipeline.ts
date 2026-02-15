@@ -7,6 +7,7 @@ import { resolveConfig } from '../config/resolver.js';
 import { createWorkspace, cleanupWorkspace, registerCleanupHandlers } from '../workspace/manager.js';
 import { executeSession } from '../execution/execution-client.js';
 import { efficiencyEvaluator } from '../evaluators/efficiency.js';
+import { fulfillmentEvaluator } from '../evaluators/fulfillment.js';
 import { persistRun } from '../storage/result-store.js';
 import { generateRunId } from '../storage/run-id.js';
 import { printRunReport } from '../reporter/terminal-reporter.js';
@@ -69,6 +70,10 @@ const runSingleSuite = async (
 
     if (resolvedConfig.metrics.efficiency !== false) {
       metrics.efficiency = await efficiencyEvaluator(evalContext);
+    }
+
+    if (resolvedConfig.metrics.requirementFulfillment) {
+      metrics.requirementFulfillment = await fulfillmentEvaluator(evalContext);
     }
 
     // Build run result

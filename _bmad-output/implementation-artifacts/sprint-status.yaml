@@ -56,7 +56,7 @@ development_status:
   # Epic 2: Intelligent Code Evaluation
   epic-2: in-progress
   2-1-judge-client-and-gateway-configuration: review
-  2-2-requirement-fulfillment-evaluator: ready-for-dev
+  2-2-requirement-fulfillment-evaluator: review
   2-3-fulfillment-terminal-display: ready-for-dev
   epic-2-retrospective: optional
 

@@ -40,6 +40,17 @@ vi.mock('../../../src/core/reporter/terminal-reporter.js', () => ({
   printRunReport: vi.fn(),
 }));
 
+// Mock judge client to avoid real API calls
+vi.mock('../../../src/core/judge/judge-client.js', () => ({
+  judgeQuery: vi.fn().mockResolvedValue({
+    content: JSON.stringify([
+      { criterion: 'Works correctly', passed: true, reasoning: 'Looks good' },
+    ]),
+    inputTokens: 200,
+    outputTokens: 100,
+  }),
+}));
+
 describe('pipeline/run-pipeline', () => {
   let tempDir: string;
 
@@ -186,6 +197,28 @@ describe('pipeline/run-pipeline', () => {
 
     const ids = result.runs.map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('runs fulfillment evaluator when requirementFulfillment metric is enabled', async () => {
+    setupProject();
+
+    // Override with fulfillment enabled
+    const projectConfig = {
+      judgeModel: 'claude-sonnet-4-5-20250929',
+      gatewayUrl: 'https://api.portkey.ai/v1',
+      resultsDir: '.zelda/runs',
+      testDir: 'zelda',
+      execution: { model: 'claude-sonnet-4-5-20250929' },
+      metrics: { efficiency: true, requirementFulfillment: true },
+    };
+    writeFileSync(join(tempDir, 'zelda.yaml'), stringifyYaml(projectConfig));
+
+    const result = await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+    expect(result.runs).toHaveLength(1);
+    expect(result.runs[0].metrics.efficiency).toBeDefined();
+    expect(result.runs[0].metrics.requirementFulfillment).toBeDefined();
+    expect(result.runs[0].metrics.requirementFulfillment.metric).toBe('requirementFulfillment');
   });
 
   it('sets timestamp on run result', async () => {
