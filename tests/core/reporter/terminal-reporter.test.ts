@@ -317,6 +317,7 @@ describe('reporter/terminal-reporter', () => {
         missedTools: [
           { name: 'test', reasoning: 'Tests should have been run' },
         ],
+        ruleCompliance: [],
         availableToolCount: 3,
         assessment: 'Partial tool utilization.',
       },
@@ -364,6 +365,7 @@ describe('reporter/terminal-reporter', () => {
         details: {
           usedTools: [{ name: 'deploy', count: 2 }],
           missedTools: [],
+          ruleCompliance: [],
           availableToolCount: 1,
           assessment: 'All tools used effectively.',
         },
@@ -380,6 +382,7 @@ describe('reporter/terminal-reporter', () => {
         details: {
           usedTools: [],
           missedTools: [{ name: 'deploy', reasoning: 'Should have deployed' }],
+          ruleCompliance: [],
           availableToolCount: 1,
           assessment: 'No tools were used.',
         },
@@ -388,6 +391,50 @@ describe('reporter/terminal-reporter', () => {
       expect(output).not.toContain('Used Tools');
       expect(output).toContain('deploy');
       expect(output).toContain('Should have deployed');
+    });
+
+    it('shows rule compliance section with COMPLIANT rules', () => {
+      const result = makeToolUsageResult({
+        score: 100,
+        details: {
+          usedTools: [],
+          missedTools: [],
+          ruleCompliance: [
+            { name: 'no-console', compliant: true, reasoning: 'No console.log found' },
+          ],
+          availableToolCount: 1,
+          assessment: 'All rules followed.',
+        },
+      });
+      const output = stripAnsi(renderEvalResult(result));
+      expect(output).toContain('Rule Compliance');
+      expect(output).toContain('COMPLIANT');
+      expect(output).toContain('no-console');
+      expect(output).toContain('No console.log found');
+    });
+
+    it('shows NOT COMPLIANT for non-compliant rules', () => {
+      const result = makeToolUsageResult({
+        score: 50,
+        details: {
+          usedTools: [],
+          missedTools: [],
+          ruleCompliance: [
+            { name: 'no-console', compliant: false, reasoning: 'Found console.log on line 42' },
+          ],
+          availableToolCount: 1,
+          assessment: 'Rule violated.',
+        },
+      });
+      const output = stripAnsi(renderEvalResult(result));
+      expect(output).toContain('NOT COMPLIANT');
+      expect(output).toContain('no-console');
+      expect(output).toContain('Found console.log on line 42');
+    });
+
+    it('does not show Rule Compliance section when no rules', () => {
+      const output = stripAnsi(renderEvalResult(makeToolUsageResult()));
+      expect(output).not.toContain('Rule Compliance');
     });
 
     it('contains no emoji characters', () => {

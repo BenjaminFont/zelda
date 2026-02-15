@@ -82,6 +82,7 @@ export type ToolEntry = {
   name: string;
   path: string;
   contentSummary?: string;
+  pathPatterns?: string[];
 };
 
 export type ToolsManifest = {

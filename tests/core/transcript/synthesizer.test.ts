@@ -93,12 +93,14 @@ describe('transcript/synthesizer', () => {
       const result = synthesizeToolUsage([]);
       expect(result.usedTools).toHaveLength(0);
       expect(result.missedTools).toHaveLength(0);
+      expect(result.ruleCompliance).toHaveLength(0);
     });
 
     it('passes through single chunk unchanged', () => {
       const details: ToolUsageDetails = {
         usedTools: [{ name: 'deploy', count: 1 }],
         missedTools: [],
+        ruleCompliance: [],
         availableToolCount: 1,
         assessment: 'Good.',
       };
@@ -110,12 +112,14 @@ describe('transcript/synthesizer', () => {
       const chunk1: ToolUsageDetails = {
         usedTools: [{ name: 'deploy', count: 2 }],
         missedTools: [],
+        ruleCompliance: [],
         availableToolCount: 2,
         assessment: 'OK.',
       };
       const chunk2: ToolUsageDetails = {
         usedTools: [{ name: 'deploy', count: 3 }],
         missedTools: [],
+        ruleCompliance: [],
         availableToolCount: 2,
         assessment: 'OK.',
       };
@@ -130,12 +134,14 @@ describe('transcript/synthesizer', () => {
       const chunk1: ToolUsageDetails = {
         usedTools: [],
         missedTools: [{ name: 'test', reasoning: 'Should have tested' }],
+        ruleCompliance: [],
         availableToolCount: 2,
         assessment: 'Missing.',
       };
       const chunk2: ToolUsageDetails = {
         usedTools: [{ name: 'test', count: 1 }],
         missedTools: [],
+        ruleCompliance: [],
         availableToolCount: 2,
         assessment: 'Found.',
       };
@@ -149,12 +155,14 @@ describe('transcript/synthesizer', () => {
       const chunk1: ToolUsageDetails = {
         usedTools: [],
         missedTools: [{ name: 'lint', reasoning: 'First reason' }],
+        ruleCompliance: [],
         availableToolCount: 1,
         assessment: 'A.',
       };
       const chunk2: ToolUsageDetails = {
         usedTools: [],
         missedTools: [{ name: 'lint', reasoning: 'Second reason' }],
+        ruleCompliance: [],
         availableToolCount: 1,
         assessment: 'B.',
       };
@@ -168,12 +176,14 @@ describe('transcript/synthesizer', () => {
       const chunk1: ToolUsageDetails = {
         usedTools: [],
         missedTools: [],
+        ruleCompliance: [],
         availableToolCount: 3,
         assessment: 'A.',
       };
       const chunk2: ToolUsageDetails = {
         usedTools: [],
         missedTools: [],
+        ruleCompliance: [],
         availableToolCount: 3,
         assessment: 'B.',
       };
@@ -186,12 +196,14 @@ describe('transcript/synthesizer', () => {
       const chunk1: ToolUsageDetails = {
         usedTools: [],
         missedTools: [],
+        ruleCompliance: [],
         availableToolCount: 1,
         assessment: 'Good start.',
       };
       const chunk2: ToolUsageDetails = {
         usedTools: [],
         missedTools: [],
+        ruleCompliance: [],
         availableToolCount: 1,
         assessment: 'Strong finish.',
       };
@@ -201,6 +213,63 @@ describe('transcript/synthesizer', () => {
       expect(result.assessment).toContain('Chunk 2');
       expect(result.assessment).toContain('Good start.');
       expect(result.assessment).toContain('Strong finish.');
+    });
+
+    it('merges rule compliance with worst-case per rule', () => {
+      const chunk1: ToolUsageDetails = {
+        usedTools: [],
+        missedTools: [],
+        ruleCompliance: [
+          { name: 'no-console', compliant: true, reasoning: 'No console.log found in chunk 1' },
+          { name: 'api-style', compliant: true, reasoning: 'Follows API conventions' },
+        ],
+        availableToolCount: 2,
+        assessment: 'OK.',
+      };
+      const chunk2: ToolUsageDetails = {
+        usedTools: [],
+        missedTools: [],
+        ruleCompliance: [
+          { name: 'no-console', compliant: false, reasoning: 'Found console.log in chunk 2' },
+          { name: 'api-style', compliant: true, reasoning: 'Still following conventions' },
+        ],
+        availableToolCount: 2,
+        assessment: 'OK.',
+      };
+
+      const result = synthesizeToolUsage([chunk1, chunk2]);
+      expect(result.ruleCompliance).toHaveLength(2);
+
+      const noConsole = result.ruleCompliance.find(r => r.name === 'no-console');
+      expect(noConsole?.compliant).toBe(false);
+      expect(noConsole?.reasoning).toBe('Found console.log in chunk 2');
+
+      const apiStyle = result.ruleCompliance.find(r => r.name === 'api-style');
+      expect(apiStyle?.compliant).toBe(true);
+    });
+
+    it('keeps compliant result if no chunk contradicts', () => {
+      const chunk1: ToolUsageDetails = {
+        usedTools: [],
+        missedTools: [],
+        ruleCompliance: [
+          { name: 'style', compliant: true, reasoning: 'OK 1' },
+        ],
+        availableToolCount: 1,
+        assessment: 'A.',
+      };
+      const chunk2: ToolUsageDetails = {
+        usedTools: [],
+        missedTools: [],
+        ruleCompliance: [
+          { name: 'style', compliant: true, reasoning: 'OK 2' },
+        ],
+        availableToolCount: 1,
+        assessment: 'B.',
+      };
+
+      const result = synthesizeToolUsage([chunk1, chunk2]);
+      expect(result.ruleCompliance[0].compliant).toBe(true);
     });
   });
 });

@@ -1,9 +1,9 @@
 // Transcript synthesizer — merges incremental evaluation results from chunks
 // Fulfillment: worst-result-wins per criterion
-// Tool usage: union of all used/missed tools
+// Tool usage: union of all used/missed tools, worst-case compliance per rule
 
 import type { FulfillmentDetails, CriterionResult } from '../evaluators/fulfillment.js';
-import type { ToolUsageDetails } from '../evaluators/tool-usage.js';
+import type { ToolUsageDetails, RuleComplianceEntry } from '../evaluators/tool-usage.js';
 
 export const synthesizeFulfillment = (
   chunkResults: FulfillmentDetails[],
@@ -45,7 +45,7 @@ export const synthesizeToolUsage = (
   chunkResults: ToolUsageDetails[],
 ): ToolUsageDetails => {
   if (chunkResults.length === 0) {
-    return { usedTools: [], missedTools: [], availableToolCount: 0, assessment: '' };
+    return { usedTools: [], missedTools: [], ruleCompliance: [], availableToolCount: 0, assessment: '' };
   }
 
   if (chunkResults.length === 1) {
@@ -79,6 +79,21 @@ export const synthesizeToolUsage = (
   const missedTools = [...missedMap.entries()]
     .map(([name, reasoning]) => ({ name, reasoning }));
 
+  // Merge rule compliance: worst-case per rule (non-compliant overrides compliant)
+  const ruleMap = new Map<string, RuleComplianceEntry>();
+  for (const result of chunkResults) {
+    for (const rule of (result.ruleCompliance ?? [])) {
+      const existing = ruleMap.get(rule.name);
+      if (!existing) {
+        ruleMap.set(rule.name, { ...rule });
+      } else if (existing.compliant && !rule.compliant) {
+        // Worst case wins: non-compliant overrides compliant
+        ruleMap.set(rule.name, { ...rule });
+      }
+    }
+  }
+  const ruleCompliance = [...ruleMap.values()];
+
   // Use max available tool count (should be same across chunks)
   const availableToolCount = Math.max(...chunkResults.map((r) => r.availableToolCount));
 
@@ -87,5 +102,5 @@ export const synthesizeToolUsage = (
     .map((r, i) => `[Chunk ${i + 1}] ${r.assessment}`)
     .join(' ');
 
-  return { usedTools, missedTools, availableToolCount, assessment };
+  return { usedTools, missedTools, ruleCompliance, availableToolCount, assessment };
 };

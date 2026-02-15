@@ -110,6 +110,19 @@ const renderToolUsage = (result: EvalResult): string => {
     }
   }
 
+  if (details.ruleCompliance && details.ruleCompliance.length > 0) {
+    lines.push(`  ${chalk.cyan(padLabel('Rule Compliance'))}`);
+    for (const rule of details.ruleCompliance) {
+      if (rule.compliant) {
+        lines.push(`    ${chalk.green('COMPLIANT')}  ${rule.name}`);
+        lines.push(`               ${chalk.dim(rule.reasoning)}`);
+      } else {
+        lines.push(`    ${chalk.red('NOT COMPLIANT')}  ${rule.name}`);
+        lines.push(`               ${rule.reasoning}`);
+      }
+    }
+  }
+
   if (details.assessment) {
     lines.push(`  ${chalk.dim(details.assessment)}`);
   }

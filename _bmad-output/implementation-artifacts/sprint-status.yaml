@@ -83,3 +83,10 @@ development_status:
   epic-6: done
   6-1-transcript-chunking-and-synthesis: done
   epic-6-retrospective: optional
+
+  # Epic 7: Post-Launch Fixes
+  epic-7: done
+  7-1-rule-compliance-evaluator: done
+  7-2-workspace-isolation-monorepo: done
+  7-3-portkey-gateway-compatibility: done
+  epic-7-retrospective: optional
