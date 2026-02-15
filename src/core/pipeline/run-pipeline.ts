@@ -9,6 +9,7 @@ import { executeSession } from '../execution/execution-client.js';
 import { efficiencyEvaluator } from '../evaluators/efficiency.js';
 import { fulfillmentEvaluator } from '../evaluators/fulfillment.js';
 import { toolUsageEvaluator } from '../evaluators/tool-usage.js';
+import { functionalCorrectnessEvaluator } from '../evaluators/functional-correctness.js';
 import { scanToolsManifest } from '../tools/manifest-scanner.js';
 import { persistRun } from '../storage/result-store.js';
 import { generateRunId } from '../storage/run-id.js';
@@ -83,6 +84,10 @@ const runSingleSuite = async (
 
     if (resolvedConfig.metrics.toolUsage) {
       metrics.toolUsage = await toolUsageEvaluator(evalContext);
+    }
+
+    if (resolvedConfig.metrics.functionalCorrectness) {
+      metrics.functionalCorrectness = await functionalCorrectnessEvaluator(evalContext);
     }
 
     // Build run result
