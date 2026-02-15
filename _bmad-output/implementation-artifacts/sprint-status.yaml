@@ -54,10 +54,10 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Intelligent Code Evaluation
-  epic-2: backlog
-  2-1-judge-client-and-gateway-configuration: backlog
-  2-2-requirement-fulfillment-evaluator: backlog
-  2-3-fulfillment-terminal-display: backlog
+  epic-2: in-progress
+  2-1-judge-client-and-gateway-configuration: review
+  2-2-requirement-fulfillment-evaluator: ready-for-dev
+  2-3-fulfillment-terminal-display: ready-for-dev
   epic-2-retrospective: optional
 
   # Epic 3: Tool Usage Intelligence
