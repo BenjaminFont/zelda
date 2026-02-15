@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import type { EvalResult, RunResult } from '../types.js';
 import type { EfficiencyDetails } from '../evaluators/efficiency.js';
 import type { FulfillmentDetails } from '../evaluators/fulfillment.js';
+import type { ToolUsageDetails } from '../evaluators/tool-usage.js';
 
 const LABEL_WIDTH = 16;
 
@@ -86,9 +87,39 @@ const renderFulfillment = (result: EvalResult): string => {
   return lines.join('\n');
 };
 
+const renderToolUsage = (result: EvalResult): string => {
+  const details = result.details as ToolUsageDetails;
+  const lines: string[] = [];
+
+  lines.push(sectionHeader('Tool Usage'));
+  lines.push(`  ${chalk.cyan(padLabel('Score'))} ${formatScore(result.score)}`);
+  lines.push(`  ${chalk.cyan(padLabel('Available'))} ${details.availableToolCount} tools`);
+
+  if (details.usedTools.length > 0) {
+    lines.push(`  ${chalk.cyan(padLabel('Used Tools'))}`);
+    for (const tool of details.usedTools) {
+      lines.push(`    ${chalk.green(padLabel(tool.name))} ${tool.count}x`);
+    }
+  }
+
+  if (details.missedTools.length > 0) {
+    lines.push(`  ${chalk.cyan(padLabel('Missed Tools'))}`);
+    for (const tool of details.missedTools) {
+      lines.push(`    ${chalk.yellow(tool.name)}: ${tool.reasoning}`);
+    }
+  }
+
+  if (details.assessment) {
+    lines.push(`  ${chalk.dim(details.assessment)}`);
+  }
+
+  return lines.join('\n');
+};
+
 const metricRenderers: Record<string, (result: EvalResult) => string> = {
   efficiency: renderEfficiency,
   requirementFulfillment: renderFulfillment,
+  toolUsage: renderToolUsage,
 };
 
 const renderMetric = (result: EvalResult): string => {

@@ -305,8 +305,100 @@ describe('reporter/terminal-reporter', () => {
     });
   });
 
-  describe('combined report (efficiency + fulfillment)', () => {
-    it('renders both metric sections', () => {
+  describe('renderEvalResult (toolUsage)', () => {
+    const makeToolUsageResult = (overrides?: Partial<EvalResult>): EvalResult => ({
+      metric: 'toolUsage',
+      score: 67,
+      details: {
+        usedTools: [
+          { name: 'deploy', count: 3 },
+          { name: 'lint', count: 1 },
+        ],
+        missedTools: [
+          { name: 'test', reasoning: 'Tests should have been run' },
+        ],
+        availableToolCount: 3,
+        assessment: 'Partial tool utilization.',
+      },
+      reasoning: '2 tools used, 1 missed out of 3 available.',
+      ...overrides,
+    });
+
+    it('shows section header "Tool Usage"', () => {
+      const output = stripAnsi(renderEvalResult(makeToolUsageResult()));
+      expect(output).toContain('Tool Usage');
+    });
+
+    it('shows overall score as percentage', () => {
+      const output = stripAnsi(renderEvalResult(makeToolUsageResult()));
+      expect(output).toContain('67.0%');
+    });
+
+    it('shows available tool count', () => {
+      const output = stripAnsi(renderEvalResult(makeToolUsageResult()));
+      expect(output).toContain('3 tools');
+    });
+
+    it('shows used tools with frequency counts', () => {
+      const output = stripAnsi(renderEvalResult(makeToolUsageResult()));
+      expect(output).toContain('deploy');
+      expect(output).toContain('3x');
+      expect(output).toContain('lint');
+      expect(output).toContain('1x');
+    });
+
+    it('shows missed tools with reasoning', () => {
+      const output = stripAnsi(renderEvalResult(makeToolUsageResult()));
+      expect(output).toContain('test');
+      expect(output).toContain('Tests should have been run');
+    });
+
+    it('shows assessment text', () => {
+      const output = stripAnsi(renderEvalResult(makeToolUsageResult()));
+      expect(output).toContain('Partial tool utilization.');
+    });
+
+    it('handles no missed tools', () => {
+      const result = makeToolUsageResult({
+        score: 100,
+        details: {
+          usedTools: [{ name: 'deploy', count: 2 }],
+          missedTools: [],
+          availableToolCount: 1,
+          assessment: 'All tools used effectively.',
+        },
+      });
+      const output = stripAnsi(renderEvalResult(result));
+      expect(output).toContain('100.0%');
+      expect(output).toContain('All tools used effectively.');
+      expect(output).not.toContain('Missed Tools');
+    });
+
+    it('handles no used tools', () => {
+      const result = makeToolUsageResult({
+        score: 0,
+        details: {
+          usedTools: [],
+          missedTools: [{ name: 'deploy', reasoning: 'Should have deployed' }],
+          availableToolCount: 1,
+          assessment: 'No tools were used.',
+        },
+      });
+      const output = stripAnsi(renderEvalResult(result));
+      expect(output).not.toContain('Used Tools');
+      expect(output).toContain('deploy');
+      expect(output).toContain('Should have deployed');
+    });
+
+    it('contains no emoji characters', () => {
+      const output = renderEvalResult(makeToolUsageResult());
+      const emojiPattern = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+      expect(emojiPattern.test(output)).toBe(false);
+    });
+  });
+
+  describe('combined report (all three metrics)', () => {
+    it('renders efficiency, fulfillment, and tool usage sections', () => {
       const run = makeRunResult({
         metrics: {
           efficiency: makeEfficiencyResult(),
@@ -322,13 +414,26 @@ describe('reporter/terminal-reporter', () => {
             },
             reasoning: '1/1 criteria passed.',
           },
+          toolUsage: {
+            metric: 'toolUsage',
+            score: 100,
+            details: {
+              usedTools: [{ name: 'deploy', count: 1 }],
+              missedTools: [],
+              availableToolCount: 1,
+              assessment: 'All tools used.',
+            },
+            reasoning: '1 tool used, 0 missed.',
+          },
         },
       });
       const output = stripAnsi(renderRunReport(run));
       expect(output).toContain('Efficiency');
       expect(output).toContain('Requirement Fulfillment');
+      expect(output).toContain('Tool Usage');
       expect(output).toContain('85.0%');
       expect(output).toContain('80.0%');
+      expect(output).toContain('100.0%');
     });
   });
 });
