@@ -61,9 +61,9 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Tool Usage Intelligence
-  epic-3: backlog
-  3-1-tools-manifest-and-tool-usage-evaluator: backlog
-  3-2-tool-usage-terminal-display: backlog
+  epic-3: in-progress
+  3-1-tools-manifest-and-tool-usage-evaluator: done
+  3-2-tool-usage-terminal-display: ready-for-dev
   epic-3-retrospective: optional
 
   # Epic 4: Functional Correctness Verification

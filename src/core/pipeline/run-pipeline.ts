@@ -8,6 +8,8 @@ import { createWorkspace, cleanupWorkspace, registerCleanupHandlers } from '../w
 import { executeSession } from '../execution/execution-client.js';
 import { efficiencyEvaluator } from '../evaluators/efficiency.js';
 import { fulfillmentEvaluator } from '../evaluators/fulfillment.js';
+import { toolUsageEvaluator } from '../evaluators/tool-usage.js';
+import { scanToolsManifest } from '../tools/manifest-scanner.js';
 import { persistRun } from '../storage/result-store.js';
 import { generateRunId } from '../storage/run-id.js';
 import { printRunReport } from '../reporter/terminal-reporter.js';
@@ -58,12 +60,15 @@ const runSingleSuite = async (
       maxTurns: resolvedConfig.execution.maxTurns,
     });
 
+    // Scan tools manifest from workspace
+    const toolsManifest = scanToolsManifest(workspacePath);
+
     // Evaluate
     const evalContext: EvalContext = {
       config: resolvedConfig,
       transcript,
       workspacePath,
-      toolsManifest: emptyToolsManifest,
+      toolsManifest,
     };
 
     const metrics: Record<string, EvalResult> = {};
@@ -74,6 +79,10 @@ const runSingleSuite = async (
 
     if (resolvedConfig.metrics.requirementFulfillment) {
       metrics.requirementFulfillment = await fulfillmentEvaluator(evalContext);
+    }
+
+    if (resolvedConfig.metrics.toolUsage) {
+      metrics.toolUsage = await toolUsageEvaluator(evalContext);
     }
 
     // Build run result
