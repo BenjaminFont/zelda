@@ -41,44 +41,55 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # Epic 1: First Evaluation Run
-  epic-1: in-progress
-  1-1-project-scaffolding-and-foundation-types: review
-  1-2-configuration-system: backlog
-  1-3-workspace-isolation: backlog
-  1-4-claude-code-execution: backlog
-  1-5-efficiency-evaluator: backlog
-  1-6-result-persistence: backlog
-  1-7-terminal-reporter: backlog
-  1-8-run-pipeline-and-cli-command: backlog
-  1-9-init-command: backlog
+  epic-1: done
+  1-1-project-scaffolding-and-foundation-types: done
+  1-2-configuration-system: done
+  1-3-workspace-isolation: done
+  1-4-claude-code-execution: done
+  1-5-efficiency-evaluator: done
+  1-6-result-persistence: done
+  1-7-terminal-reporter: done
+  1-8-run-pipeline-and-cli-command: done
+  1-9-init-command: done
   epic-1-retrospective: optional
 
   # Epic 2: Intelligent Code Evaluation
-  epic-2: backlog
-  2-1-judge-client-and-gateway-configuration: backlog
-  2-2-requirement-fulfillment-evaluator: backlog
-  2-3-fulfillment-terminal-display: backlog
+  epic-2: done
+  2-1-judge-client-and-gateway-configuration: done
+  2-2-requirement-fulfillment-evaluator: done
+  2-3-fulfillment-terminal-display: done
   epic-2-retrospective: optional
 
   # Epic 3: Tool Usage Intelligence
-  epic-3: backlog
-  3-1-tools-manifest-and-tool-usage-evaluator: backlog
-  3-2-tool-usage-terminal-display: backlog
+  epic-3: done
+  3-1-tools-manifest-and-tool-usage-evaluator: done
+  3-2-tool-usage-terminal-display: done
   epic-3-retrospective: optional
 
+
   # Epic 4: Functional Correctness Verification
-  epic-4: backlog
-  4-1-build-and-test-runner: backlog
-  4-2-functional-correctness-terminal-display: backlog
+  epic-4: done
+  4-1-build-and-test-runner: done
+  4-2-functional-correctness-terminal-display: done
   epic-4-retrospective: optional
 
   # Epic 5: Compare & Iterate
-  epic-5: backlog
-  5-1-list-and-retrieve-runs: backlog
-  5-2-compare-command: backlog
+  epic-5: done
+  5-1-list-and-retrieve-runs: done
+  5-2-compare-command: done
   epic-5-retrospective: optional
 
   # Epic 6: Transcript Management
-  epic-6: backlog
-  6-1-transcript-chunking-and-synthesis: backlog
+  epic-6: done
+  6-1-transcript-chunking-and-synthesis: done
   epic-6-retrospective: optional
+
+  # Epic 7: Post-Launch Fixes
+  epic-7: in-progress
+  7-1-rule-compliance-evaluator: done
+  7-2-workspace-isolation-monorepo: done
+  7-3-portkey-gateway-compatibility: done
+  7-4-task-size-and-complexity-fix: done
+  7-5-persistent-workspaces: done
+  7-6-apply-run-changes: done
+  epic-7-retrospective: optional

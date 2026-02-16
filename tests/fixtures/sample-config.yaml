@@ -1,0 +1,12 @@
+judgeModel: claude-sonnet-4-5-20250929
+gatewayUrl: https://api.portkey.ai/v1
+resultsDir: .zelda/runs
+testDir: zelda
+execution:
+  model: claude-sonnet-4-5-20250929
+  maxTurns: 25
+metrics:
+  efficiency: true
+  requirementFulfillment: true
+  toolUsage: true
+  functionalCorrectness: true

@@ -43,7 +43,7 @@ describe('core/types', () => {
     const mockEvaluator: Evaluator = async (_context) => ({
       metric: 'test',
       score: 100,
-      details: null,
+      details: {},
     });
 
     const context: EvalContext = {

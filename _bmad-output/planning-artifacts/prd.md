@@ -320,8 +320,8 @@ All commands are standalone (non-interactive). Future enhancement: interactive m
 - FR24: LLM judge evaluates each acceptance criterion individually, returning PASS/FAIL with reasoning per criterion
 - FR25: System computes an overall requirement fulfillment score as percentage of criteria met
 - FR26: System builds a tools manifest by scanning the workspace's `.claude/` directory (skills, rules, sub-agents, MCP configurations)
-- FR27: System sends the tools manifest and session transcript to an LLM judge for tool usage analysis
-- FR28: LLM judge identifies tools used (with frequency), tools that should have been used but weren't, and overall utilization effectiveness
+- FR27: System sends the tools manifest and session transcript to an LLM judge for tool usage analysis. The judge differentiates between invocable tools (skills, sub-agents, MCP — checked for explicit invocation in transcript) and implicit context (rules — checked for output compliance)
+- FR28: LLM judge identifies invocable tools used (with frequency), invocable tools that should have been used but weren't, rule compliance per rule, and overall utilization effectiveness
 - FR29: Developer can configure which LLM model is used as the judge and the gateway endpoint (e.g., Portkey)
 - FR30: System routes all judge LLM calls through the configured gateway endpoint, supporting Anthropic SDK via Portkey
 - FR31: Developer can configure gateway credentials (API key, endpoint URL) separately from Claude Agent SDK credentials used for execution
@@ -389,3 +389,9 @@ All commands are standalone (non-interactive). Future enhancement: interactive m
 - NFR14: If a run fails mid-execution, partial results are preserved and the workspace is cleaned up
 - NFR15: Result persistence is atomic — a result file is either complete and valid JSON, or not written at all
 - NFR16: System recovers cleanly from interrupted runs — no orphaned git worktrees or zombie processes
+
+### Post-Launch Additions
+
+- FR54: Rules (`.claude/rules/*.md`) are evaluated for output compliance, not transcript invocation — they are implicit context, not invocable tools
+- FR55: Rules with `paths:` YAML frontmatter are only evaluated for compliance when matching files were touched during the session
+- FR56: Workspace creation uses directory copy (not git worktree) when the project directory is a subdirectory of a larger git repository (e.g., monorepo packages)

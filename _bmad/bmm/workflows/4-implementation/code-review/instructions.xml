@@ -224,4 +224,38 @@
     </output>
   </step>
 
+  <step n="6" goal="Commit and push changes to git">
+    <check if="{{new_status}} == 'in-progress'">
+      <output>⏭️ Skipping git commit — changes won't be committed until the review passes and status is "done".</output>
+    </check>
+
+    <check if="{{new_status}} == 'done'">
+      <!-- Stage all changed files from the review -->
+      <action>Run `git status --porcelain` to get current list of changed files</action>
+      <action>Stage all changed files discovered during the review (from git status and story File List), excluding _bmad/ internals not related to the story</action>
+      <action>Run `git add` on each relevant changed file</action>
+
+      <!-- Generate commit message and commit -->
+      <action>Generate a commit message using the format:
+        feat({{story_key}}): &lt;concise summary of what was implemented&gt;
+
+        - Include key changes from the story's Acceptance Criteria
+        - Reference the story file path
+      </action>
+      <action>Run `git commit` with the generated message</action>
+      <action>Capture {{commit_hash}} from the commit output</action>
+
+      <!-- Push to remote -->
+      <action>Run `git push` to the remote tracking branch</action>
+      <action>Capture {{push_result}} from the push output</action>
+
+      <output>**🚀 Changes committed and pushed!**
+
+        **Commit:** {{commit_hash}}
+        **Push:** {{push_result}}
+        **Story:** {{story_key}}
+      </output>
+    </check>
+  </step>
+
 </workflow>
