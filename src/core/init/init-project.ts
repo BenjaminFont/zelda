@@ -24,9 +24,10 @@ resultsDir: .zelda/runs
 testDir: zelda
 
 # Default execution settings (can be overridden per test suite)
+# taskSize: small (10 turns), medium (25), large (50), xl (100)
 execution:
   model: claude-sonnet-4-5-20250929
-  maxTurns: 25
+  taskSize: medium
 
 # Default metric toggles (can be overridden per test suite)
 metrics:
@@ -54,8 +55,7 @@ acceptanceCriteria:
 
 # Optional: override execution settings for this suite
 # execution:
-#   model: claude-sonnet-4-5-20250929
-#   maxTurns: 15
+#   taskSize: small
 
 # Optional: override metric toggles for this suite
 # metrics:

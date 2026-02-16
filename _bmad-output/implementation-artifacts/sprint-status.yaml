@@ -89,4 +89,5 @@ development_status:
   7-1-rule-compliance-evaluator: done
   7-2-workspace-isolation-monorepo: done
   7-3-portkey-gateway-compatibility: done
+  7-4-task-size-and-complexity-fix: done
   epic-7-retrospective: optional

@@ -1,10 +1,12 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
 status: complete
-completedAt: '2026-02-13'
+completedAt: '2026-02-15'
 inputDocuments:
   - prd.md
   - architecture.md
+addedEpics:
+  - epic-8
 ---
 
 # Zelda - Epic Breakdown
@@ -70,6 +72,23 @@ This document provides the complete epic and story breakdown for Zelda, decompos
 - FR51: Terminal output shows tool usage analysis with tools called, tools missed, and utilization assessment
 - FR52: Terminal output shows efficiency metrics (tokens, cost, turns, duration, tool call breakdown)
 - FR53: Terminal output shows functional correctness results (build status, test pass/fail counts, coverage)
+
+#### Phase 2 — Code Quality & Complexity (Epic 8)
+
+- FR57: Developer can configure one or more static analysis commands per test suite (e.g., `npx eslint .`, `npx tsc --noEmit`) that the system executes in the workspace after Claude Code completes
+- FR58: System executes each configured static analysis command and captures exit code, stdout, and stderr
+- FR59: System parses linter/compiler output to extract counts of errors and warnings
+- FR60: System computes a code quality score (0-100) based on error/warning counts (zero errors = 100, scaling down with errors)
+- FR61: Terminal output shows code quality results (per-command pass/fail, error count, warning count, overall score)
+- FR62: Code quality evaluator conforms to the Evaluator interface (EvalContext → Promise<EvalResult> with metric: "codeQuality")
+- FR63: System identifies files touched during the Claude Code session (new or modified) by diffing workspace state before and after execution
+- FR64: System parses touched files to count APP elements (constants, calls, conditions, loops, assignments) using language-agnostic pattern detection
+- FR65: System computes weighted APP total per file using the APP weight table (constants x1, calls x2, conditions x4, loops x5, assignments x6)
+- FR66: System computes per-file APP density (weighted total / lines of code) as the normalized complexity measure
+- FR67: System computes relative APP delta by comparing touched files against their pre-session state — showing whether Claude Code made the code more or less complex
+- FR68: System computes an overall complexity score (0-100) derived from per-file density (lower density = higher score)
+- FR69: Terminal output shows complexity results: per-file breakdown (element counts, density), relative delta vs. pre-session, and overall score
+- FR70: Complexity evaluator conforms to the Evaluator interface (EvalContext → Promise<EvalResult> with metric: "complexity")
 
 ### NonFunctional Requirements
 
@@ -182,6 +201,23 @@ This document provides the complete epic and story breakdown for Zelda, decompos
 | FR51 | Epic 3 | Terminal: tool usage display |
 | FR52 | Epic 1 | Terminal: efficiency metrics display |
 | FR53 | Epic 4 | Terminal: functional correctness display |
+| FR54 | Epic 7 | Rules evaluated for compliance, not invocation |
+| FR55 | Epic 7 | Path-scoped rules only evaluated when matching files touched |
+| FR56 | Epic 7 | Directory copy for monorepo subdirectories |
+| FR57 | Epic 8 | Configure static analysis commands per test suite |
+| FR58 | Epic 8 | Execute static analysis commands, capture output |
+| FR59 | Epic 8 | Parse linter/compiler output for error/warning counts |
+| FR60 | Epic 8 | Compute code quality score 0-100 |
+| FR61 | Epic 8 | Terminal: code quality results display |
+| FR62 | Epic 8 | Code quality evaluator conforms to Evaluator interface |
+| FR63 | Epic 8 | Identify touched files via workspace diff |
+| FR64 | Epic 8 | Language-agnostic APP element counting |
+| FR65 | Epic 8 | Compute weighted APP total per file |
+| FR66 | Epic 8 | Compute per-file APP density |
+| FR67 | Epic 8 | Compute relative APP delta vs. pre-session |
+| FR68 | Epic 8 | Compute overall complexity score 0-100 |
+| FR69 | Epic 8 | Terminal: complexity results display |
+| FR70 | Epic 8 | Complexity evaluator conforms to Evaluator interface |
 
 ## Epic List
 
@@ -211,6 +247,16 @@ Developer can list all past runs, retrieve full results, and compare any two run
 System handles long Claude Code sessions gracefully — large transcripts are automatically chunked and evaluated incrementally without losing information. Ensures judge evaluations work reliably on complex tasks.
 **FRs covered:** FR39-42
 **NFRs addressed:** NFR4
+
+### Epic 7: Post-Launch Fixes
+Fixes and improvements discovered during real-world testing. Corrects rule evaluation logic in the tool usage evaluator, fixes workspace isolation for monorepo subdirectories, and resolves Portkey gateway compatibility issues.
+**FRs covered:** FR54-56 (new), FR11-12, FR27-28, FR30 (updated)
+**Stories:** 7.1 (rule compliance — DONE), 7.2 (monorepo workspace — DONE), 7.3 (Portkey fixes — DONE), 7.4 (task size + complexity fix — DONE)
+
+### Epic 8: Code Quality & Complexity Analysis
+Developer gets two new evaluation dimensions: (1) Code Quality — run external static analysis tools (ESLint, tsc, biome, etc.) and score based on errors/warnings, and (2) Code Complexity — measure generated code complexity using the APP (Absolute Priority Premise) weighted metric with per-file density and relative before/after deltas. Both metrics are language-agnostic and operate on files touched during the session.
+**FRs covered:** FR57-70
+**New metrics:** `codeQuality` (external tools), `complexity` (APP analysis)
 
 ## Epic 1: First Evaluation Run
 
@@ -711,3 +757,263 @@ So that judge evaluations work reliably even for complex, long-running sessions.
 **Given** the transcript manager
 **When** integrated with requirement fulfillment and tool usage evaluators
 **Then** both judge-based evaluators use transcript management transparently — chunking is applied when needed without evaluator changes
+
+## Epic 7: Post-Launch Fixes
+
+Fixes and improvements discovered during real-world testing of the evaluation pipeline. Addresses correctness issues in evaluators, workspace isolation for monorepo projects, and gateway compatibility.
+
+**FRs updated:** FR11-12, FR27-28, FR30
+**New FRs:** FR54-56
+
+### Story 7.1: Differentiate Rule Compliance from Tool Invocation in Tool Usage Evaluator
+
+As a **developer using Zelda**,
+I want the tool usage evaluator to distinguish between invocable tools (skills, sub-agents, MCP) and implicit context (rules),
+So that rules are evaluated by output compliance rather than transcript invocation — producing accurate scores.
+
+**Context:**
+Claude Code rules (`.claude/rules/*.md`) are automatically loaded into the LLM context at session startup. They are not explicitly invoked via tool calls — they are implicit memory. The current evaluator treats all manifest entries the same way (checking for transcript invocation), which incorrectly penalizes rules as "missed tools" even when the output code fully complies with the rule's guidance. This was confirmed during live testing: the rate-limiter run scored 60% on tool usage because the judge flagged rules as "not invoked," despite the code following both `typescript-strict` and `error-handling` rules.
+
+**Acceptance Criteria:**
+
+**Given** a workspace with `.claude/rules/*.md` files
+**When** the tool usage evaluator runs
+**Then** rules are evaluated for **compliance** (did the output follow the rule?) not **invocation** (was the rule called as a tool?)
+
+**Given** a workspace with both rules and skills/sub-agents
+**When** the evaluator produces results
+**Then** the result separates `invokedTools` (skills, sub-agents, MCP with invocation frequency) from `ruleCompliance` (rules with compliance assessment per rule)
+
+**Given** rules that were followed implicitly
+**When** the score is computed
+**Then** followed rules contribute positively to the score, not penalized as "missed tools"
+
+**Given** a rule scoped with `paths:` frontmatter
+**When** the evaluator checks compliance
+**Then** it only evaluates compliance for rules whose path patterns match files touched in the session
+
+**Given** the judge prompt for tool usage
+**When** it evaluates rules vs. invocable tools
+**Then** it uses different evaluation criteria: "Was this rule's guidance reflected in the code?" for rules vs. "Was this tool explicitly called?" for skills/sub-agents
+
+**Given** a workspace with no rules but with skills
+**When** the evaluator runs
+**Then** only invocation-based evaluation is performed (no rule compliance section)
+
+**Technical Notes:**
+- Rules with `paths:` YAML frontmatter are conditionally loaded — only applied when working with matching files
+- Rules without `paths:` frontmatter are always active (global rules)
+- The manifest scanner already reads rule content summaries; extend to parse `paths:` frontmatter
+- The judge prompt must clearly separate the two evaluation modes in a single call
+- Result schema change: `ToolUsageDetails` gains `ruleCompliance` alongside existing `usedTools`/`missedTools`
+
+### Story 7.2: Workspace Isolation for Monorepo Subdirectories
+
+As a **developer using Zelda in a monorepo**,
+I want workspace creation to correctly isolate my project subdirectory,
+So that Claude Code works on my project files, not the entire monorepo.
+
+**Context:**
+When `projectDir` is a subdirectory of a git repository (e.g., `monorepo/packages/my-api/`), `git worktree add` checks out the entire repository — not just the subdirectory. Claude Code then sees the wrong codebase and wastes turns exploring unrelated files. Discovered during live testing with `examples/rest-api/` inside the Zelda repo.
+
+**Acceptance Criteria:**
+
+**Given** a project directory that is the git repository root
+**When** workspace creation runs
+**Then** git worktree is used (existing behavior)
+
+**Given** a project directory that is a subdirectory of a git repository
+**When** workspace creation runs
+**Then** directory copy is used instead of git worktree, copying only the project subdirectory
+
+**Given** workspace cleanup for a directory-copy workspace
+**When** cleanup runs
+**Then** the directory is removed without attempting git worktree removal
+
+**Status:** DONE — implemented in this session (changed `isGitRepo` to `isGitRepoRoot` comparing `git rev-parse --show-toplevel` against `projectDir`)
+
+### Story 7.3: Portkey Gateway Compatibility Fixes
+
+As a **developer routing judge calls through Portkey**,
+I want the judge client to authenticate correctly with Portkey's API,
+So that LLM judge evaluations work when using Portkey as a gateway.
+
+**Context:**
+Two issues discovered during live testing:
+1. The Anthropic SDK sends API keys as `x-api-key` header, but Portkey expects `x-portkey-api-key`. The judge client needed to detect Portkey and use `defaultHeaders`.
+2. The Anthropic SDK appends `/v1/messages` to the `baseURL`. If the user configures `gatewayUrl: https://api.portkey.ai/v1`, the SDK calls `https://api.portkey.ai/v1/v1/messages` (doubled path). The `gatewayUrl` must omit the `/v1` suffix.
+
+**Acceptance Criteria:**
+
+**Given** a `gatewayUrl` containing "portkey"
+**When** the judge client creates an Anthropic SDK instance
+**Then** the `PORTKEY_API_KEY` is sent via the `x-portkey-api-key` header, not as the SDK's `apiKey`
+
+**Given** a `gatewayUrl` configured as `https://api.portkey.ai`
+**When** the judge client makes an API call
+**Then** the request goes to `https://api.portkey.ai/v1/messages` (correct path)
+
+**Given** a `gatewayUrl` without "portkey" in the hostname
+**When** the judge client creates an Anthropic SDK instance
+**Then** standard Anthropic SDK authentication is used (existing behavior)
+
+**Status:** DONE — implemented in this session (Portkey detection + `defaultHeaders` in `createClient`)
+
+## Epic 8: Code Quality & Complexity Analysis
+
+Developer gets two new evaluation dimensions: (1) Code Quality — run external static analysis tools (ESLint, tsc, biome, etc.) and score based on errors/warnings, and (2) Code Complexity — measure generated code complexity using the APP (Absolute Priority Premise) weighted metric with per-file density and relative before/after deltas. Both metrics are language-agnostic and operate on files touched during the session.
+
+### Story 8.1: Code Quality Evaluator
+
+As a **developer using Zelda**,
+I want Zelda to run my static analysis tools on generated code and score the results,
+So that I know whether Claude Code produced code that passes my linting and type-checking standards.
+
+**Acceptance Criteria:**
+
+**Given** a test suite with `staticAnalysis` configured as a list of commands (e.g., `["npx eslint .", "npx tsc --noEmit"]`)
+**When** the code quality evaluator runs
+**Then** each command is executed in the workspace and exit code, stdout, and stderr are captured (FR57-58)
+
+**Given** the output of a static analysis command
+**When** the evaluator parses the result
+**Then** it extracts error count and warning count from stdout/stderr (FR59)
+
+**Given** parsed error and warning counts from all configured commands
+**When** the overall score is computed
+**Then** zero errors across all commands = 100, score decreases proportionally with errors, warnings have lower weight than errors (FR60)
+
+**Given** the code quality evaluator
+**When** it conforms to the `Evaluator` type
+**Then** it accepts `EvalContext` and returns `Promise<EvalResult>` with `metric: "codeQuality"` and `details` containing per-command results (command, exitCode, errors, warnings) (FR62)
+
+**Given** a test suite without `staticAnalysis` configured
+**When** the code quality evaluator runs
+**Then** it skips gracefully and returns a result indicating "not configured"
+
+**Given** a static analysis command that fails to execute (e.g., tool not installed)
+**When** the error is caught
+**Then** the evaluator reports the failure for that command without crashing the entire evaluation
+
+**Given** code quality evaluation in the pipeline
+**When** it runs
+**Then** it executes sequentially (subprocess in workspace), like functional correctness — not in parallel with judge calls
+
+**Technical Notes:**
+- Schema extension: add optional `staticAnalysis: string[]` to test suite Zod schema
+- Similar execution pattern to `functional-correctness.ts` (subprocess in workspace)
+- New file: `src/core/evaluators/code-quality.ts`
+- Test file: `tests/core/evaluators/code-quality.test.ts`
+
+### Story 8.2: Code Complexity Evaluator (APP)
+
+As a **developer using Zelda**,
+I want Zelda to measure the complexity of code Claude Code generated using the APP weighted metric,
+So that I can track whether Claude Code produces simple, maintainable code — and whether changes made it more or less complex.
+
+**Acceptance Criteria:**
+
+**Given** a completed Claude Code session in a workspace
+**When** the complexity evaluator identifies touched files
+**Then** it detects all files that were created or modified during the session by diffing workspace state against pre-session state (FR63)
+
+**Given** a git worktree workspace
+**When** touched files are identified
+**Then** `git diff` is used to detect modifications and `git status` for new untracked files
+
+**Given** a directory-copy workspace
+**When** touched files are identified
+**Then** a file snapshot taken before execution is compared against post-execution state
+
+**Given** a touched source file in any programming language
+**When** the APP parser analyzes it
+**Then** it counts elements using language-agnostic pattern detection: constants (literals, strings), calls (function/method invocations), conditions (if/switch/ternary), loops (for/while/map/reduce/forEach), assignments (variable mutations) (FR64)
+
+**Given** element counts for a file
+**When** the weighted APP total is computed
+**Then** it applies the weight table: constants x1, calls x2, conditions x4, loops x5, assignments x6 — and sums the weighted values (FR65)
+
+**Given** a file's weighted APP total
+**When** per-file density is computed
+**Then** density = weighted total / lines of code (excluding blank lines and comments) (FR66)
+
+**Given** a file that existed before the session (modified, not new)
+**When** the relative delta is computed
+**Then** it compares pre-session APP density against post-session APP density, producing a signed delta (positive = more complex, negative = simpler) (FR67)
+
+**Given** a file that is new (created during the session)
+**When** the relative delta is computed
+**Then** no delta is shown — only the absolute density is reported
+
+**Given** per-file density values for all touched files
+**When** the overall complexity score is computed
+**Then** it produces a 0-100 score where lower average density = higher score, using a configurable density threshold for calibration (FR68)
+
+**Given** the complexity evaluator
+**When** it conforms to the `Evaluator` type
+**Then** it accepts `EvalContext` and returns `Promise<EvalResult>` with `metric: "complexity"` and `details` containing per-file breakdown (file path, element counts, weighted total, LOC, density, delta) (FR70)
+
+**Given** a workspace where no source files were touched
+**When** the complexity evaluator runs
+**Then** it returns a result indicating "no source files modified" with no score
+
+**Given** non-source files (images, JSON, YAML, markdown, lock files)
+**When** the evaluator scans touched files
+**Then** they are excluded from APP analysis — only source code files are parsed
+
+**Technical Notes:**
+- Pre-session snapshot: for git worktrees, use git to diff; for directory copies, snapshot file hashes + content before execution
+- Language-agnostic patterns: regex-based detection covering common languages (JS/TS, Python, Go, Rust, Java, C#, Ruby, etc.)
+- The APP parser should be a separate internal module for testability (`src/core/evaluators/app-parser.ts`)
+- New files: `src/core/evaluators/complexity.ts`, `src/core/evaluators/app-parser.ts`
+- Test files: `tests/core/evaluators/complexity.test.ts`, `tests/core/evaluators/app-parser.test.ts`
+- Pipeline integration: runs synchronously (pure computation, no subprocess or network I/O)
+
+### Story 8.3: Code Quality & Complexity Terminal Display
+
+As a **developer using Zelda**,
+I want to see code quality and complexity results in the terminal,
+So that I can immediately understand lint compliance and code complexity at a glance.
+
+**Acceptance Criteria:**
+
+**Given** a code quality `EvalResult` with per-command results
+**When** the terminal reporter displays code quality results
+**Then** it shows: each command with PASS (green) / FAIL (red), error count, warning count, and the overall code quality score as a percentage (FR61)
+
+**Given** a complexity `EvalResult` with per-file breakdown
+**When** the terminal reporter displays complexity results
+**Then** it shows: each touched file with element counts (constants, calls, conditions, loops, assignments), weighted APP total, LOC, and density (FR69)
+
+**Given** a complexity result with relative deltas
+**When** modified files are displayed
+**Then** the density delta is shown with directional indicators: positive delta (more complex) in red, negative delta (simpler) in green, zero delta in dim
+
+**Given** a complexity result with new files (no pre-session state)
+**When** new files are displayed
+**Then** density is shown without a delta indicator — only the absolute value
+
+**Given** a run with all six metrics (efficiency, fulfillment, tool usage, functional correctness, code quality, complexity)
+**When** the terminal reporter displays all results
+**Then** all metric sections are shown in consistent vitest-style layout with clear section headers
+
+**Given** a code quality result indicating "not configured"
+**When** the terminal reporter displays results
+**Then** the code quality section is omitted (not shown as empty or zero)
+
+**Given** a complexity result indicating "no source files modified"
+**When** the terminal reporter displays results
+**Then** the complexity section shows an informational message rather than an empty table
+
+**Given** the compare command with two runs that include code quality and complexity metrics
+**When** deltas are computed
+**Then** code quality score delta and complexity score delta are shown alongside existing metric deltas with directional indicators
+
+**Technical Notes:**
+- Follow existing chalk color conventions: green=pass, red=fail, yellow=warning, cyan=info, dim=secondary
+- No emojis — clean professional output
+- Percentages: one decimal place (e.g., `85.0%`)
+- Density values: two decimal places (e.g., `3.45`)
+- Update `src/core/reporter/terminal.ts` with new sections
+- Update `src/core/reporter/compare.ts` to include new metric deltas
+- Tests: update `tests/core/reporter/terminal.test.ts` and `tests/core/reporter/compare.test.ts`

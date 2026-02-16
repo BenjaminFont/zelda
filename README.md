@@ -53,7 +53,8 @@ Created by `zelda init` in your project root.
 judgeModel: claude-sonnet-4-5-20250929
 
 # AI gateway URL (Portkey, LiteLLM, or direct Anthropic)
-gatewayUrl: https://api.anthropic.com/v1
+# Note: omit /v1 suffix — the SDK appends it automatically
+gatewayUrl: https://api.anthropic.com
 
 # Directory where run results are stored
 resultsDir: .zelda/runs
@@ -62,9 +63,10 @@ resultsDir: .zelda/runs
 testDir: zelda
 
 # Default execution settings (can be overridden per test suite)
+# taskSize: small (10 turns), medium (25), large (50), xl (100)
 execution:
   model: claude-sonnet-4-5-20250929
-  maxTurns: 25
+  taskSize: medium
 
 # Default metric toggles (can be overridden per test suite)
 metrics:
@@ -91,8 +93,7 @@ acceptanceCriteria:
 
 # Override execution settings for this suite
 execution:
-  model: claude-sonnet-4-5-20250929
-  maxTurns: 15
+  taskSize: small    # or: maxTurns: 15 (explicit maxTurns overrides taskSize)
 
 # Override which metrics are evaluated
 metrics:
@@ -106,6 +107,19 @@ buildCommand: npm run build
 testCommand: npm test
 coverageThreshold: 80
 ```
+
+### Task Size
+
+Instead of specifying raw `maxTurns`, use `taskSize` for a human-friendly abstraction:
+
+| taskSize | maxTurns | Use case |
+|----------|----------|----------|
+| `small`  | 10       | Single file fix, simple function |
+| `medium` | 25       | Multi-file feature, basic tests |
+| `large`  | 50       | Full-stack feature with tests and review |
+| `xl`     | 100      | Complex app from scratch, full test suite |
+
+If both `taskSize` and `maxTurns` are set, explicit `maxTurns` takes priority. A test suite's `taskSize` overrides any project-level `maxTurns`.
 
 ## Commands
 
@@ -134,7 +148,7 @@ zelda run example    # run only zelda/test-example.yaml
 
 The pipeline:
 1. Loads and validates config
-2. Creates an isolated workspace (git worktree or directory copy)
+2. Creates an isolated workspace (git worktree at repo root, or directory copy for subdirectories/non-git)
 3. Executes Claude Code with your prompt
 4. Runs enabled evaluators
 5. Persists results to `.zelda/runs/<run-id>/`
@@ -183,11 +197,16 @@ LLM-as-judge evaluation of each acceptance criterion.
 
 ### Tool Usage
 
-Scans your `.claude/` directory for available tools, then uses an LLM judge to analyze whether Claude Code effectively used them.
+Scans your `.claude/` directory for available tools, then uses an LLM judge to analyze whether Claude Code effectively used them. Distinguishes between two categories:
 
-- Scans: `.claude/commands/*.md` (skills), `.claude/rules/*.md`, `.claude/agents/*.md`, `mcp.json`
-- Identifies tools used (with invocation frequency)
-- Identifies tools that should have been used but weren't
+- **Invocable tools** (skills, sub-agents, MCP): Checked for explicit invocation in the transcript
+- **Rules**: Checked for output compliance — rules are implicit context loaded into Claude Code's memory, not tool calls
+
+Scans: `.claude/commands/*.md` (skills), `.claude/rules/*.md`, `.claude/agents/*.md`, `mcp.json`
+
+Results include:
+- Invocable tools used (with frequency) and tools missed
+- Rule compliance assessment per rule
 - Overall utilization effectiveness score
 
 ### Functional Correctness
@@ -221,17 +240,19 @@ Zelda scans your `.claude/` directory to build a tools manifest:
 
 ```
 .claude/
-  commands/         # Skills (slash commands)
+  commands/         # Skills (slash commands) — checked for invocation
     deploy.md
     test.md
-  rules/            # Rules
+  rules/            # Rules — checked for output compliance
     no-console.md
-  agents/           # Sub-agents
+  agents/           # Sub-agents — checked for invocation
     reviewer.md
-  mcp.json          # MCP server configurations
+  mcp.json          # MCP server configurations — checked for invocation
 ```
 
-The tool usage evaluator then analyzes whether Claude Code actually used these tools during the session.
+The tool usage evaluator analyzes two things:
+- **Invocable tools** (skills, sub-agents, MCP): Were they explicitly called during the session?
+- **Rules**: Did the generated code comply with the rule's guidelines? Rules are implicit context — they're loaded into Claude Code's memory automatically, not invoked as tool calls. Rules with `paths:` frontmatter are only evaluated when matching files were touched.
 
 ## Development
 

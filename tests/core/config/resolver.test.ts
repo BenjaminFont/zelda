@@ -122,4 +122,92 @@ describe('config/resolver', () => {
     expect(resolved.execution.model).toBe('claude-opus-4-6');
     expect(resolved.execution.maxTurns).toBe(10);
   });
+
+  describe('taskSize resolution', () => {
+    it('resolves taskSize to maxTurns when maxTurns not set', () => {
+      const project: ProjectConfig = {
+        ...baseProjectConfig,
+        execution: { model: 'claude-sonnet-4-5-20250929' },
+      };
+      const suite: TestSuiteConfig = {
+        ...baseTestSuiteConfig,
+        execution: { taskSize: 'large' },
+      };
+      const resolved = resolveConfig(project, suite, 'test');
+      expect(resolved.execution.maxTurns).toBe(50);
+      expect(resolved.execution.taskSize).toBe('large');
+    });
+
+    it('explicit maxTurns takes priority over taskSize in same config', () => {
+      const suite: TestSuiteConfig = {
+        ...baseTestSuiteConfig,
+        execution: { taskSize: 'large', maxTurns: 30 },
+      };
+      const resolved = resolveConfig(baseProjectConfig, suite, 'test');
+      expect(resolved.execution.maxTurns).toBe(30);
+      expect(resolved.execution.taskSize).toBe('large');
+    });
+
+    it('suite taskSize overrides project maxTurns', () => {
+      const project: ProjectConfig = {
+        ...baseProjectConfig,
+        execution: { model: 'claude-sonnet-4-5-20250929', maxTurns: 25 },
+      };
+      const suite: TestSuiteConfig = {
+        ...baseTestSuiteConfig,
+        execution: { taskSize: 'small' },
+      };
+      const resolved = resolveConfig(project, suite, 'test');
+      expect(resolved.execution.maxTurns).toBe(10);
+    });
+
+    it('project taskSize sets maxTurns when suite has no execution override', () => {
+      const project: ProjectConfig = {
+        ...baseProjectConfig,
+        execution: { model: 'claude-sonnet-4-5-20250929', taskSize: 'xl' },
+      };
+      const resolved = resolveConfig(project, baseTestSuiteConfig, 'test');
+      expect(resolved.execution.maxTurns).toBe(100);
+      expect(resolved.execution.taskSize).toBe('xl');
+    });
+
+    it('maps all taskSize values correctly', () => {
+      const sizes = { small: 10, medium: 25, large: 50, xl: 100 } as const;
+      for (const [size, expectedTurns] of Object.entries(sizes)) {
+        const suite: TestSuiteConfig = {
+          ...baseTestSuiteConfig,
+          execution: { taskSize: size as 'small' | 'medium' | 'large' | 'xl' },
+        };
+        const project: ProjectConfig = {
+          ...baseProjectConfig,
+          execution: { model: 'claude-sonnet-4-5-20250929' },
+        };
+        const resolved = resolveConfig(project, suite, 'test');
+        expect(resolved.execution.maxTurns).toBe(expectedTurns);
+      }
+    });
+
+    it('leaves maxTurns undefined when neither taskSize nor maxTurns set', () => {
+      const project: ProjectConfig = {
+        ...baseProjectConfig,
+        execution: { model: 'claude-sonnet-4-5-20250929' },
+      };
+      const resolved = resolveConfig(project, baseTestSuiteConfig, 'test');
+      expect(resolved.execution.maxTurns).toBeUndefined();
+      expect(resolved.execution.taskSize).toBeUndefined();
+    });
+
+    it('suite maxTurns overrides project taskSize', () => {
+      const project: ProjectConfig = {
+        ...baseProjectConfig,
+        execution: { model: 'claude-sonnet-4-5-20250929', taskSize: 'xl' },
+      };
+      const suite: TestSuiteConfig = {
+        ...baseTestSuiteConfig,
+        execution: { maxTurns: 15 },
+      };
+      const resolved = resolveConfig(project, suite, 'test');
+      expect(resolved.execution.maxTurns).toBe(15);
+    });
+  });
 });

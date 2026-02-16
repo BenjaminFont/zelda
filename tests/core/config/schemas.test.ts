@@ -160,6 +160,33 @@ describe('config/schemas', () => {
       const result = ExecutionDefaultsSchema.safeParse({ model: 'test', maxTurns: 5 });
       expect(result.success).toBe(true);
     });
+
+    it('validates with taskSize', () => {
+      const result = ExecutionDefaultsSchema.safeParse({ taskSize: 'large' });
+      expect(result.success).toBe(true);
+    });
+
+    it('validates with both taskSize and maxTurns', () => {
+      const result = ExecutionDefaultsSchema.safeParse({ taskSize: 'small', maxTurns: 30 });
+      expect(result.success).toBe(true);
+    });
+
+    it('validates all taskSize values', () => {
+      for (const size of ['small', 'medium', 'large', 'xl']) {
+        const result = ExecutionDefaultsSchema.safeParse({ taskSize: size });
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it('rejects invalid taskSize', () => {
+      const result = ExecutionDefaultsSchema.safeParse({ taskSize: 'huge' });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects non-string taskSize', () => {
+      const result = ExecutionDefaultsSchema.safeParse({ taskSize: 42 });
+      expect(result.success).toBe(false);
+    });
   });
 
   describe('MetricTogglesSchema', () => {

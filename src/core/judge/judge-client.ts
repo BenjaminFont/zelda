@@ -32,11 +32,15 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 const createClient = (options: JudgeClientOptions): Anthropic => {
+  const apiKey = options.apiKey ?? process.env.PORTKEY_API_KEY ?? process.env.ANTHROPIC_API_KEY;
+  const isPortkey = options.gatewayUrl?.includes('portkey');
+
   return new Anthropic({
     baseURL: options.gatewayUrl,
-    apiKey: options.apiKey ?? process.env.PORTKEY_API_KEY ?? process.env.ANTHROPIC_API_KEY,
+    apiKey: isPortkey ? 'x' : apiKey, // Portkey uses its own header, SDK still requires a value
     maxRetries: 0, // We handle retries ourselves for better error reporting
     timeout: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    defaultHeaders: isPortkey ? { 'x-portkey-api-key': apiKey } : undefined,
   });
 };
 

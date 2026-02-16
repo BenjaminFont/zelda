@@ -7,13 +7,17 @@ import { WorkspaceError } from '../errors.js';
 
 const WORKSPACES_DIR = '.zelda/workspaces';
 
-const isGitRepo = (dir: string): boolean => {
+const isGitRepoRoot = (dir: string): boolean => {
   try {
-    execSync('git rev-parse --is-inside-work-tree', {
+    const toplevel = execSync('git rev-parse --show-toplevel', {
       cwd: dir,
       stdio: 'pipe',
-    });
-    return true;
+      encoding: 'utf-8',
+    }).trim();
+    // Only use worktree when projectDir IS the repo root.
+    // Subdirectories (e.g. monorepo packages) must use directory copy,
+    // because worktrees check out the entire repo, not a subdirectory.
+    return toplevel === dir;
   } catch {
     return false;
   }
@@ -36,7 +40,7 @@ export const createWorkspace = (
 
   mkdirSync(workspacesBase, { recursive: true });
 
-  if (isGitRepo(projectDir)) {
+  if (isGitRepoRoot(projectDir)) {
     try {
       execSync(`git worktree add "${workspacePath}" HEAD --detach`, {
         cwd: projectDir,
@@ -77,7 +81,7 @@ export const cleanupWorkspace = (
   workspacePath: string,
 ): void => {
   // Try to remove git worktree first (fails silently if not a worktree)
-  if (isGitRepo(projectDir)) {
+  if (isGitRepoRoot(projectDir)) {
     try {
       execSync(`git worktree remove "${workspacePath}" --force`, {
         cwd: projectDir,

@@ -7,6 +7,7 @@ export type EvalContext = {
   transcript: SessionTranscript;
   workspacePath: string;
   toolsManifest: ToolsManifest;
+  preSnapshot?: Record<string, string>;
 };
 
 export type EvalResult = {
@@ -25,11 +26,16 @@ export type MetricToggles = {
   requirementFulfillment?: boolean;
   toolUsage?: boolean;
   functionalCorrectness?: boolean;
+  codeQuality?: boolean;
+  complexity?: boolean;
 };
+
+export type TaskSize = 'small' | 'medium' | 'large' | 'xl';
 
 export type ExecutionDefaults = {
   model?: string;
   maxTurns?: number;
+  taskSize?: TaskSize;
 };
 
 export type ResolvedConfig = {
@@ -46,6 +52,8 @@ export type ResolvedConfig = {
   buildCommand?: string;
   testCommand?: string;
   coverageThreshold?: number;
+  staticAnalysis?: string[];
+  complexityThreshold?: number;
 };
 
 // ─── Session & Transcript Types ──────────────────────────────────────────────

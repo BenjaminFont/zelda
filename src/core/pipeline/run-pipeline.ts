@@ -1,7 +1,7 @@
 // Run pipeline — orchestrates config → workspace → execute → evaluate → persist → report → cleanup
 
 import { resolve, join } from 'node:path';
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { loadProjectConfig, loadTestSuite } from '../config/loader.js';
 import { resolveConfig } from '../config/resolver.js';
 import { createWorkspace, cleanupWorkspace, registerCleanupHandlers } from '../workspace/manager.js';
@@ -10,6 +10,8 @@ import { efficiencyEvaluator } from '../evaluators/efficiency.js';
 import { fulfillmentEvaluator } from '../evaluators/fulfillment.js';
 import { toolUsageEvaluator } from '../evaluators/tool-usage.js';
 import { functionalCorrectnessEvaluator } from '../evaluators/functional-correctness.js';
+import { codeQualityEvaluator } from '../evaluators/code-quality.js';
+import { complexityEvaluator, capturePreSnapshot } from '../evaluators/complexity.js';
 import { scanToolsManifest } from '../tools/manifest-scanner.js';
 import { persistRun } from '../storage/result-store.js';
 import { generateRunId } from '../storage/run-id.js';
@@ -53,6 +55,15 @@ const runSingleSuite = async (
     workspacePath = createWorkspace(projectDir, runId);
     deregister = registerCleanupHandlers(projectDir, workspacePath);
 
+    // Capture pre-snapshot for complexity evaluation (directory-copy workspaces)
+    let preSnapshot: Record<string, string> | undefined;
+    if (resolvedConfig.metrics.complexity) {
+      const isGitWorkspace = existsSync(join(workspacePath, '.git'));
+      if (!isGitWorkspace) {
+        preSnapshot = capturePreSnapshot(workspacePath);
+      }
+    }
+
     // Execute Claude Code session
     const { transcript } = await executeSession({
       prompt: resolvedConfig.prompt,
@@ -70,6 +81,7 @@ const runSingleSuite = async (
       transcript,
       workspacePath,
       toolsManifest,
+      preSnapshot,
     };
 
     const metrics: Record<string, EvalResult> = {};
@@ -88,6 +100,14 @@ const runSingleSuite = async (
 
     if (resolvedConfig.metrics.functionalCorrectness) {
       metrics.functionalCorrectness = await functionalCorrectnessEvaluator(evalContext);
+    }
+
+    if (resolvedConfig.metrics.codeQuality) {
+      metrics.codeQuality = await codeQualityEvaluator(evalContext);
+    }
+
+    if (resolvedConfig.metrics.complexity) {
+      metrics.complexity = await complexityEvaluator(evalContext);
     }
 
     // Build run result

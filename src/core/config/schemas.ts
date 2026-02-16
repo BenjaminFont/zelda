@@ -2,11 +2,21 @@
 
 import { z } from 'zod';
 
+// ─── Task Size Mapping ──────────────────────────────────────────────────────
+
+export const TASK_SIZE_MAP = {
+  small: 10,
+  medium: 25,
+  large: 50,
+  xl: 100,
+} as const;
+
 // ─── Shared Sub-Schemas ─────────────────────────────────────────────────────
 
 export const ExecutionDefaultsSchema = z.object({
   model: z.string().optional(),
   maxTurns: z.number().int().positive().optional(),
+  taskSize: z.enum(['small', 'medium', 'large', 'xl']).optional(),
 });
 
 export const MetricTogglesSchema = z.object({
@@ -14,6 +24,8 @@ export const MetricTogglesSchema = z.object({
   requirementFulfillment: z.boolean().optional(),
   toolUsage: z.boolean().optional(),
   functionalCorrectness: z.boolean().optional(),
+  codeQuality: z.boolean().optional(),
+  complexity: z.boolean().optional(),
 });
 
 // ─── Project Config Schema ──────────────────────────────────────────────────
@@ -39,6 +51,8 @@ export const TestSuiteConfigSchema = z.object({
   buildCommand: z.string().optional(),
   testCommand: z.string().optional(),
   coverageThreshold: z.number().min(0).max(100).optional(),
+  staticAnalysis: z.array(z.string()).optional(),
+  complexityThreshold: z.number().min(0).optional(),
 });
 
 export type TestSuiteConfig = z.infer<typeof TestSuiteConfigSchema>;
