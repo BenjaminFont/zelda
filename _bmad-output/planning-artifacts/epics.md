@@ -251,7 +251,7 @@ System handles long Claude Code sessions gracefully — large transcripts are au
 ### Epic 7: Post-Launch Fixes
 Fixes and improvements discovered during real-world testing. Corrects rule evaluation logic in the tool usage evaluator, fixes workspace isolation for monorepo subdirectories, and resolves Portkey gateway compatibility issues.
 **FRs covered:** FR54-56 (new), FR11-12, FR27-28, FR30 (updated)
-**Stories:** 7.1 (rule compliance — DONE), 7.2 (monorepo workspace — DONE), 7.3 (Portkey fixes — DONE), 7.4 (task size + complexity fix — DONE)
+**Stories:** 7.1 (rule compliance — DONE), 7.2 (monorepo workspace — DONE), 7.3 (Portkey fixes — DONE), 7.4 (task size + complexity fix — DONE), 7.5 (persistent workspaces — DONE), 7.6 (apply run changes — DONE)
 
 ### Epic 8: Code Quality & Complexity Analysis
 Developer gets two new evaluation dimensions: (1) Code Quality — run external static analysis tools (ESLint, tsc, biome, etc.) and score based on errors/warnings, and (2) Code Complexity — measure generated code complexity using the APP (Absolute Priority Premise) weighted metric with per-file density and relative before/after deltas. Both metrics are language-agnostic and operate on files touched during the session.

@@ -67,6 +67,18 @@ describe('reporter/terminal-reporter', () => {
       const output = stripAnsi(renderRunHeader(makeRunResult()));
       expect(output).toContain('Zelda Evaluation Results');
     });
+
+    it('shows workspace path when present', () => {
+      const run = makeRunResult({ workspacePath: '/tmp/zelda/workspaces/test-run-001' });
+      const output = stripAnsi(renderRunHeader(run));
+      expect(output).toContain('Workspace');
+      expect(output).toContain('/tmp/zelda/workspaces/test-run-001');
+    });
+
+    it('omits workspace line when workspacePath is not set', () => {
+      const output = stripAnsi(renderRunHeader(makeRunResult()));
+      expect(output).not.toContain('Workspace');
+    });
   });
 
   describe('renderEvalResult (efficiency)', () => {

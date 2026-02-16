@@ -101,30 +101,3 @@ export const cleanupWorkspace = (
   }
 };
 
-export const registerCleanupHandlers = (
-  projectDir: string,
-  workspacePath: string,
-): (() => void) => {
-  const cleanup = () => {
-    cleanupWorkspace(projectDir, workspacePath);
-  };
-
-  const sigintHandler = () => {
-    cleanup();
-    process.exit(130);
-  };
-
-  const sigtermHandler = () => {
-    cleanup();
-    process.exit(143);
-  };
-
-  process.on('SIGINT', sigintHandler);
-  process.on('SIGTERM', sigtermHandler);
-
-  // Return a deregistration function
-  return () => {
-    process.removeListener('SIGINT', sigintHandler);
-    process.removeListener('SIGTERM', sigtermHandler);
-  };
-};

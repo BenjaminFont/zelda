@@ -85,9 +85,11 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Post-Launch Fixes
-  epic-7: done
+  epic-7: in-progress
   7-1-rule-compliance-evaluator: done
   7-2-workspace-isolation-monorepo: done
   7-3-portkey-gateway-compatibility: done
   7-4-task-size-and-complexity-fix: done
+  7-5-persistent-workspaces: done
+  7-6-apply-run-changes: done
   epic-7-retrospective: optional

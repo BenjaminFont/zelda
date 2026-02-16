@@ -1,10 +1,10 @@
-// Run pipeline — orchestrates config → workspace → execute → evaluate → persist → report → cleanup
+// Run pipeline — orchestrates config → workspace → execute → evaluate → persist → report
 
 import { resolve, join } from 'node:path';
 import { existsSync, readdirSync } from 'node:fs';
 import { loadProjectConfig, loadTestSuite } from '../config/loader.js';
 import { resolveConfig } from '../config/resolver.js';
-import { createWorkspace, cleanupWorkspace, registerCleanupHandlers } from '../workspace/manager.js';
+import { createWorkspace } from '../workspace/manager.js';
 import { executeSession } from '../execution/execution-client.js';
 import { efficiencyEvaluator } from '../evaluators/efficiency.js';
 import { fulfillmentEvaluator } from '../evaluators/fulfillment.js';
@@ -44,16 +44,14 @@ const runSingleSuite = async (
 ): Promise<{ run?: RunResult; error?: string }> => {
   const runId = generateRunId(suiteName);
   let workspacePath: string | undefined;
-  let deregister: (() => void) | undefined;
 
   try {
     // Load and validate suite config
     const suiteConfig = loadTestSuite(suitePath);
     const resolvedConfig = resolveConfig(projectConfig, suiteConfig, suiteName);
 
-    // Create workspace
+    // Create workspace (persists after run for inspection)
     workspacePath = createWorkspace(projectDir, runId);
-    deregister = registerCleanupHandlers(projectDir, workspacePath);
 
     // Capture pre-snapshot for complexity evaluation (directory-copy workspaces)
     let preSnapshot: Record<string, string> | undefined;
@@ -122,13 +120,14 @@ const runSingleSuite = async (
         metrics: resolvedConfig.metrics,
       },
       metrics,
+      workspacePath,
     };
 
     // Persist results
     const resultsDir = resolve(projectDir, resolvedConfig.resultsDir);
     persistRun(resultsDir, runResult, transcript);
 
-    // Display report before cleanup
+    // Display report
     printRunReport(runResult);
 
     return { run: runResult };
@@ -137,12 +136,6 @@ const runSingleSuite = async (
       ? e.userMessage
       : `Unexpected error: ${e instanceof Error ? e.message : String(e)}`;
     return { error: `[${suiteName}] ${errorMsg}` };
-  } finally {
-    // Cleanup workspace
-    if (deregister) deregister();
-    if (workspacePath) {
-      cleanupWorkspace(projectDir, workspacePath);
-    }
   }
 };
 

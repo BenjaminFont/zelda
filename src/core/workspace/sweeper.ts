@@ -6,6 +6,50 @@ import { join } from 'node:path';
 
 const WORKSPACES_DIR = '.zelda/workspaces';
 
+export const listWorkspaces = (projectDir: string): string[] => {
+  const workspacesBase = join(projectDir, WORKSPACES_DIR);
+
+  if (!existsSync(workspacesBase)) {
+    return [];
+  }
+
+  try {
+    return readdirSync(workspacesBase);
+  } catch {
+    return [];
+  }
+};
+
+export const cleanSingleWorkspace = (
+  projectDir: string,
+  runId: string,
+): boolean => {
+  const workspacesBase = join(projectDir, WORKSPACES_DIR);
+  const workspacePath = join(workspacesBase, runId);
+
+  if (!existsSync(workspacePath)) {
+    return false;
+  }
+
+  // Try git worktree remove first
+  try {
+    execSync(`git worktree remove "${workspacePath}" --force`, {
+      cwd: projectDir,
+      stdio: 'pipe',
+    });
+    return true;
+  } catch {
+    // Not a worktree or git not available — try direct removal
+  }
+
+  try {
+    rmSync(workspacePath, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const sweepOrphanedWorkspaces = (projectDir: string): string[] => {
   const workspacesBase = join(projectDir, WORKSPACES_DIR);
 

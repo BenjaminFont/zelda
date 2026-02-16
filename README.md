@@ -152,8 +152,29 @@ The pipeline:
 3. Executes Claude Code with your prompt
 4. Runs enabled evaluators
 5. Persists results to `.zelda/runs/<run-id>/`
-6. Displays a colored terminal report
-7. Cleans up the workspace
+6. Displays a colored terminal report (includes workspace path)
+
+### `zelda apply <run-id>`
+
+Apply code changes from a run's workspace back to your project.
+
+```bash
+zelda apply <run-id>           # apply changes to project
+zelda apply <run-id> --dry-run # preview changes without applying
+```
+
+For git worktree workspaces, this extracts the diff and applies it with `git apply`. For directory-copy workspaces, it copies modified files back.
+
+### `zelda clean [run-id]`
+
+Remove evaluation workspaces.
+
+```bash
+zelda clean           # remove all workspaces
+zelda clean <run-id>  # remove a specific workspace
+```
+
+Workspaces persist after each run at `.zelda/workspaces/<run-id>` so you can inspect the generated code. Use `zelda clean` to reclaim disk space when done.
 
 ### `zelda list`
 
@@ -231,7 +252,7 @@ your-project/
       test-api-2026.../
         result.json        # metric scores + config snapshot
         transcript.json    # full session transcript
-    workspaces/            # temporary (cleaned up after runs)
+    workspaces/            # persistent (use `zelda clean` to remove)
 ```
 
 ## Tool Usage Detection

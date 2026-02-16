@@ -31,8 +31,6 @@ vi.mock('../../../src/core/workspace/manager.js', () => ({
     mkdirSync(dir, { recursive: true });
     return dir;
   }),
-  cleanupWorkspace: vi.fn(),
-  registerCleanupHandlers: vi.fn(() => vi.fn()),
 }));
 
 // Suppress terminal output during tests
@@ -144,13 +142,14 @@ describe('pipeline/run-pipeline', () => {
     expect(printRunReport).toHaveBeenCalledTimes(2);
   });
 
-  it('calls cleanupWorkspace after each run', async () => {
+  it('includes workspacePath in run result', async () => {
     setupProject();
 
-    await runPipeline({ projectDir: tempDir, testName: 'api' });
+    const result = await runPipeline({ projectDir: tempDir, testName: 'api' });
 
-    const { cleanupWorkspace } = await import('../../../src/core/workspace/manager.js');
-    expect(cleanupWorkspace).toHaveBeenCalledTimes(1);
+    expect(result.runs).toHaveLength(1);
+    expect(result.runs[0].workspacePath).toBeDefined();
+    expect(typeof result.runs[0].workspacePath).toBe('string');
   });
 
   it('returns error when test suite not found', async () => {

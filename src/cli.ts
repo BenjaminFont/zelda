@@ -10,6 +10,8 @@ import { renderRunList } from './core/reporter/list-reporter.js';
 import { loadProjectConfig } from './core/config/loader.js';
 import { compareRuns } from './core/compare/compare-runs.js';
 import { renderComparison } from './core/reporter/compare-reporter.js';
+import { sweepOrphanedWorkspaces, cleanSingleWorkspace } from './core/workspace/sweeper.js';
+import { applyRunChanges } from './core/apply/apply-changes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -133,6 +135,63 @@ program
       } else {
         process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
       }
+      process.exit(2);
+    }
+  });
+
+program
+  .command('apply <run-id>')
+  .description('Apply workspace changes from a run to your project')
+  .option('-n, --dry-run', 'Show what would be applied without making changes')
+  .action((runId: string, opts: { dryRun?: boolean }) => {
+    try {
+      const result = applyRunChanges(process.cwd(), runId, { dryRun: opts.dryRun });
+
+      if (result.filesChanged === 0) {
+        process.stdout.write('No changes to apply\n');
+        return;
+      }
+
+      if (opts.dryRun) {
+        process.stdout.write(`Would apply ${result.filesChanged} file(s):\n${result.summary}\n`);
+      } else {
+        process.stdout.write(`Applied ${result.filesChanged} file(s):\n${result.summary}\n`);
+      }
+    } catch (e) {
+      if (e instanceof ZeldaError) {
+        process.stderr.write(`Error: ${e.userMessage}\n`);
+      } else {
+        process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
+      }
+      process.exit(2);
+    }
+  });
+
+program
+  .command('clean [run-id]')
+  .description('Remove evaluation workspaces')
+  .action((runId?: string) => {
+    try {
+      const projectDir = process.cwd();
+
+      if (runId) {
+        const removed = cleanSingleWorkspace(projectDir, runId);
+        if (removed) {
+          process.stdout.write(`Removed workspace for run: ${runId}\n`);
+        } else {
+          process.stderr.write(`Workspace not found for run: ${runId}\n`);
+          process.exit(1);
+        }
+      } else {
+        const removed = sweepOrphanedWorkspaces(projectDir);
+        if (removed.length > 0) {
+          process.stdout.write(`Removed ${removed.length} workspace(s)\n`);
+        } else {
+          process.stdout.write('No workspaces to clean\n');
+        }
+      }
+    } catch (e) {
+      process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
       process.exit(2);
     }
   });

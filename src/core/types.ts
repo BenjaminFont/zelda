@@ -115,4 +115,5 @@ export type RunResult = {
   timestamp: string;
   testSuite: TestSuiteSnapshot;
   metrics: Record<string, EvalResult>;
+  workspacePath?: string;
 };
