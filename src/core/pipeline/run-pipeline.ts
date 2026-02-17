@@ -17,7 +17,8 @@ import { persistRun } from '../storage/result-store.js';
 import { generateRunId } from '../storage/run-id.js';
 import { printRunReport } from '../reporter/terminal-reporter.js';
 import { ZeldaError } from '../errors.js';
-import type { RunResult, EvalResult, EvalContext, ToolsManifest } from '../types.js';
+import { detectRuntime, clearRuntimeCache } from '../execution/runtime-detector.js';
+import type { RunResult, EvalResult, EvalContext, ToolsManifest, RuntimeDetectionResult } from '../types.js';
 
 export type PipelineOptions = {
   projectDir: string;
@@ -41,6 +42,7 @@ const runSingleSuite = async (
   suiteName: string,
   suitePath: string,
   projectConfig: ReturnType<typeof loadProjectConfig>,
+  runtimeResult: RuntimeDetectionResult,
 ): Promise<{ run?: RunResult; error?: string }> => {
   const runId = generateRunId(suiteName);
   let workspacePath: string | undefined;
@@ -49,6 +51,11 @@ const runSingleSuite = async (
     // Load and validate suite config
     const suiteConfig = loadTestSuite(suitePath);
     const resolvedConfig = resolveConfig(projectConfig, suiteConfig, suiteName);
+
+    // Handle container backend fallback when runtime unavailable
+    if (resolvedConfig.execution.backend === 'container' && !runtimeResult.available) {
+      resolvedConfig.execution.backend = 'local';
+    }
 
     // Create workspace (persists after run for inspection)
     workspacePath = createWorkspace(projectDir, runId);
@@ -147,6 +154,11 @@ export const runPipeline = async (
   const projectConfig = loadProjectConfig(configPath);
   const testDir = resolve(projectDir, projectConfig.testDir);
 
+  // Detect container runtime (once, cached across suites)
+  // Only throws for AGENTBOX_PATH_INVALID (config error) — other cases return available: false
+  clearRuntimeCache();
+  const runtimeResult = detectRuntime({ agentboxPath: projectConfig.execution?.agentboxPath });
+
   let suites: { name: string; path: string }[];
 
   if (options.testName) {
@@ -179,6 +191,7 @@ export const runPipeline = async (
       suite.name,
       suite.path,
       projectConfig,
+      runtimeResult,
     );
 
     if (result.run) runs.push(result.run);

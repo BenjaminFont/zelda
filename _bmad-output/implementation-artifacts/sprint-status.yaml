@@ -85,7 +85,7 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Post-Launch Fixes
-  epic-7: in-progress
+  epic-7: done
   7-1-rule-compliance-evaluator: done
   7-2-workspace-isolation-monorepo: done
   7-3-portkey-gateway-compatibility: done
@@ -93,3 +93,18 @@ development_status:
   7-5-persistent-workspaces: done
   7-6-apply-run-changes: done
   epic-7-retrospective: optional
+
+  # Epic 8: Code Quality & Complexity Analysis
+  epic-8: done
+  8-1-code-quality-evaluator: done
+  8-2-code-complexity-evaluator: done
+  8-3-code-quality-complexity-terminal-display: done
+  epic-8-retrospective: optional
+
+  # Epic 9: Containerized Execution (Agentbox Integration)
+  epic-9: in-progress
+  9-1-execution-backend-configuration-and-runtime-detection: done
+  9-2-container-lifecycle-manager: ready-for-dev
+  9-3-container-execution-adapter: ready-for-dev
+  9-4-fallback-user-messaging-and-documentation: ready-for-dev
+  epic-9-retrospective: optional

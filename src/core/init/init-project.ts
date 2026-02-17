@@ -25,9 +25,12 @@ testDir: zelda
 
 # Default execution settings (can be overridden per test suite)
 # taskSize: small (10 turns), medium (25), large (50), xl (100)
+# backend: container (recommended, requires Docker + agentbox) or local
 execution:
   model: claude-sonnet-4-5-20250929
   taskSize: medium
+  backend: container
+  # agentboxPath: /path/to/agentbox  # optional, auto-detected from PATH
 
 # Default metric toggles (can be overridden per test suite)
 metrics:

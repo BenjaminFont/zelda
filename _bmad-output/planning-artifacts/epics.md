@@ -218,6 +218,14 @@ This document provides the complete epic and story breakdown for Zelda, decompos
 | FR68 | Epic 8 | Compute overall complexity score 0-100 |
 | FR69 | Epic 8 | Terminal: complexity results display |
 | FR70 | Epic 8 | Complexity evaluator conforms to Evaluator interface |
+| FR71 | Epic 9 | Configure execution backend (container/local) |
+| FR72 | Epic 9 | Verify Docker/Podman availability |
+| FR73 | Epic 9 | Agentbox container lifecycle management |
+| FR74 | Epic 9 | Bind-mount workspace into container |
+| FR75 | Epic 9 | Execute Claude Code inside container, capture transcript |
+| FR76 | Epic 9 | Ephemeral containers (auto-destroy) |
+| FR77 | Epic 9 | Fallback to local with warning when Docker unavailable |
+| FR78 | Epic 9 | Configurable agentbox binary path |
 
 ## Epic List
 
@@ -257,6 +265,12 @@ Fixes and improvements discovered during real-world testing. Corrects rule evalu
 Developer gets two new evaluation dimensions: (1) Code Quality — run external static analysis tools (ESLint, tsc, biome, etc.) and score based on errors/warnings, and (2) Code Complexity — measure generated code complexity using the APP (Absolute Priority Premise) weighted metric with per-file density and relative before/after deltas. Both metrics are language-agnostic and operate on files touched during the session.
 **FRs covered:** FR57-70
 **New metrics:** `codeQuality` (external tools), `complexity` (APP analysis)
+
+### Epic 9: Containerized Execution (Agentbox Integration)
+Developer can run evaluations inside a Docker container via agentbox, providing full host isolation while maintaining file change visibility through bind mounts. Containerized execution is the recommended default; local execution remains as fallback for environments without Docker/Podman. Agentbox is an external prerequisite installed by the user.
+**FRs covered:** FR71-78
+**NFRs addressed:** NFR17-19
+**Stories:** 9.1 (config & detection), 9.2 (container lifecycle), 9.3 (execution adapter), 9.4 (fallback & docs)
 
 ## Epic 1: First Evaluation Run
 
@@ -1017,3 +1031,172 @@ So that I can immediately understand lint compliance and code complexity at a gl
 - Update `src/core/reporter/terminal.ts` with new sections
 - Update `src/core/reporter/compare.ts` to include new metric deltas
 - Tests: update `tests/core/reporter/terminal.test.ts` and `tests/core/reporter/compare.test.ts`
+
+## Epic 9: Containerized Execution (Agentbox Integration)
+
+Developer can run evaluations inside a Docker container via agentbox, providing full host isolation while maintaining file change visibility through bind mounts. Containerized execution is the recommended mode; local execution remains as fallback for environments without Docker/Podman.
+
+**FRs covered:** FR71-78
+**NFRs addressed:** NFR17-19
+**External dependency:** [agentbox](https://github.com/fletchgqc/agentbox) — user-installed prerequisite
+
+### Story 9.1: Execution Backend Configuration & Runtime Detection
+
+As a **developer using Zelda**,
+I want to configure whether evaluations run locally or in a container,
+So that I can choose the execution mode that suits my environment.
+
+**Acceptance Criteria:**
+
+**Given** a `zelda.config.yaml`
+**When** the developer adds `execution.backend: container` or `execution.backend: local`
+**Then** the config schema validates the value and the pipeline uses the specified backend (FR71)
+
+**Given** a test suite YAML with `execution.backend` set
+**When** it differs from the project-level setting
+**Then** the test suite value overrides the project default (FR71)
+
+**Given** no `execution.backend` configured
+**When** the config resolver applies defaults
+**Then** `container` is the default backend
+
+**Given** `backend: container`
+**When** the pipeline starts execution
+**Then** it checks for Docker or Podman availability by running `docker info` or `podman info` (FR72)
+
+**Given** Docker/Podman is available
+**When** the pipeline checks for agentbox
+**Then** it verifies the agentbox binary exists at the configured path or in PATH (FR78)
+
+**Given** Docker/Podman is NOT available and backend is `container`
+**When** the pipeline detects the missing runtime
+**Then** it logs a warning recommending containerized execution and falls back to `local` mode (FR77)
+
+**Given** agentbox is not found and backend is `container`
+**When** the pipeline detects the missing binary
+**Then** it throws a clear `ExecutionError` with instructions on how to install agentbox
+
+**Given** the developer wants to specify a custom agentbox path
+**When** `execution.agentboxPath` is set in config
+**Then** the system uses that path instead of searching PATH (FR78)
+
+**Technical Notes:**
+- Schema extension: add `backend?: 'container' | 'local'` and `agentboxPath?: string` to execution config in Zod schema
+- Runtime detection module: `src/core/execution/runtime-detector.ts`
+- Detection is cached per pipeline run — don't re-check for every test suite
+- Test file: `tests/core/execution/runtime-detector.test.ts`
+
+### Story 9.2: Container Lifecycle Manager
+
+As a **developer using Zelda**,
+I want containers automatically started before execution and destroyed after,
+So that I get full host isolation without managing Docker manually.
+
+**Acceptance Criteria:**
+
+**Given** `backend: container` and runtime is available
+**When** the pipeline is ready to execute a Claude Code session
+**Then** it starts an agentbox container with the workspace directory bind-mounted (FR73-74)
+
+**Given** a started container
+**When** the container is running
+**Then** the workspace directory inside the container reflects all files from the host workspace, and any changes inside are immediately visible on the host (FR74, NFR19)
+
+**Given** execution completes (success or failure)
+**When** the container lifecycle ends
+**Then** the container is automatically destroyed — ephemeral, no leftover containers (FR76, NFR18)
+
+**Given** a run interrupted by SIGINT or SIGTERM
+**When** the signal handler fires
+**Then** the container is stopped and removed before process exit (NFR18)
+
+**Given** multiple test suites in a single `zelda run`
+**When** each suite executes
+**Then** each suite gets its own container instance — containers are not shared across suites
+
+**Given** container startup and teardown
+**When** overhead is measured
+**Then** it does not dominate Zelda's framework time — the Claude Code session remains the dominant cost (NFR17)
+
+**Technical Notes:**
+- New module: `src/core/execution/container-manager.ts`
+- Agentbox invocation: shell out via `child_process.execFile` or `spawn`
+- Agentbox supports `agentbox <command>` for one-off commands — use this pattern
+- Container cleanup must be in the same try/finally + signal handler pattern as workspace cleanup
+- Test file: `tests/core/execution/container-manager.test.ts`
+- Integration with existing workspace cleanup: container teardown happens BEFORE workspace removal
+
+### Story 9.3: Container Execution Adapter
+
+As a **developer using Zelda**,
+I want Claude Code to run inside the container and produce the same transcript output as local execution,
+So that the evaluation pipeline works identically regardless of execution backend.
+
+**Acceptance Criteria:**
+
+**Given** `backend: container` with a running container and workspace mounted
+**When** the pipeline executes a Claude Code session
+**Then** Claude Code runs inside the container via agentbox with the test suite prompt (FR75)
+
+**Given** Claude Code completing inside the container
+**When** the session produces results
+**Then** the transcript and all file changes are written to the mounted workspace and are accessible from the host (FR74-75)
+
+**Given** a containerized execution
+**When** the pipeline collects results
+**Then** it produces the same `SessionTranscript` and `ExecutionResult` types as local execution — downstream evaluators see no difference
+
+**Given** the execution adapter
+**When** it selects the backend
+**Then** it delegates to either the existing `execution-client.ts` (local) or the new container adapter — both conform to the same interface
+
+**Given** environment variables needed by Claude Code (e.g., `ANTHROPIC_API_KEY`)
+**When** the container starts
+**Then** required environment variables are passed through to the container (agentbox handles this via `.env` files or `--env` flags)
+
+**Given** the execution adapter interface
+**When** future backends are considered
+**Then** the interface is generic enough that only `local` and `container` implementations are needed now, but the pattern supports extension
+
+**Technical Notes:**
+- New module: `src/core/execution/container-adapter.ts`
+- Adapter pattern: extract `ExecutionBackend` interface from current `execution-client.ts`, implement for both local and container
+- Agentbox command pattern: `agentbox --project-dir <workspace> claude <prompt-args>`
+- Transcript capture: Claude Code CLI writes session data; adapter reads from workspace after completion
+- Alternatively: run a Zelda execution script inside the container that uses the Agent SDK and writes `transcript.json` to the workspace
+- The right approach depends on agentbox's CLI capabilities — spike during implementation
+- Test file: `tests/core/execution/container-adapter.test.ts`
+
+### Story 9.4: Fallback, User Messaging & Documentation
+
+As a **developer setting up Zelda**,
+I want clear guidance on installing agentbox and understanding execution modes,
+So that I can set up containerized execution quickly or understand why local mode is being used.
+
+**Acceptance Criteria:**
+
+**Given** Docker/Podman is not installed
+**When** Zelda falls back to local execution
+**Then** a yellow warning is displayed: "Docker/Podman not found. Running in local mode. Containerized execution is recommended for host isolation. See: <agentbox setup link>" (FR77)
+
+**Given** agentbox is not installed but Docker is available
+**When** Zelda cannot find the agentbox binary
+**Then** a clear error is displayed with installation instructions: clone repo, make executable, add to PATH
+
+**Given** `zelda init` scaffolds a new project
+**When** the generated `zelda.config.yaml` is created
+**Then** it includes the `execution.backend` field with a comment explaining container vs. local modes
+
+**Given** the project README or documentation
+**When** a developer looks for setup instructions
+**Then** there is a section explaining agentbox installation, Docker prerequisites, and how to configure execution backend
+
+**Given** a successful containerized run
+**When** the terminal reporter shows results
+**Then** a subtle indicator shows the execution mode used (e.g., "Executed in: container" in dim text)
+
+**Technical Notes:**
+- Update `zelda init` template to include `execution.backend` with comments
+- Update terminal reporter to show execution mode
+- Documentation: add agentbox setup section to README or a dedicated setup guide
+- Warning messages follow existing chalk conventions (yellow for warnings, dim for info)

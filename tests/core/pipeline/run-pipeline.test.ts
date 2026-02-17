@@ -49,6 +49,15 @@ vi.mock('../../../src/core/judge/judge-client.js', () => ({
   }),
 }));
 
+// Mock runtime detector to avoid real Docker/agentbox checks
+vi.mock('../../../src/core/execution/runtime-detector.js', () => ({
+  detectRuntime: vi.fn().mockReturnValue({
+    available: false,
+    warnings: ['Docker/Podman not found. Running in local mode.'],
+  }),
+  clearRuntimeCache: vi.fn(),
+}));
+
 describe('pipeline/run-pipeline', () => {
   let tempDir: string;
 
@@ -230,5 +239,55 @@ describe('pipeline/run-pipeline', () => {
     expect(result.runs[0].timestamp).toBeDefined();
     expect(result.runs[0].timestamp >= before).toBe(true);
     expect(result.runs[0].timestamp <= after).toBe(true);
+  });
+
+  describe('runtime detection integration', () => {
+    it('calls detectRuntime before running suites', async () => {
+      setupProject();
+
+      await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      expect(detectRuntime).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears runtime cache at start of each pipeline run', async () => {
+      setupProject();
+
+      await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      const { clearRuntimeCache } = await import('../../../src/core/execution/runtime-detector.js');
+      expect(clearRuntimeCache).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to local when container runtime not available', async () => {
+      setupProject();
+
+      // Project config defaults backend to 'container' via resolver
+      const result = await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      // Run succeeds with local fallback
+      expect(result.runs).toHaveLength(1);
+      expect(result.errors).toHaveLength(0);
+      // Backend should have been overridden to 'local'
+      expect(result.runs[0].testSuite.execution.backend).toBe('local');
+    });
+
+    it('preserves container backend when runtime is available', async () => {
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      vi.mocked(detectRuntime).mockReturnValue({
+        available: true,
+        containerRuntime: 'docker',
+        agentboxPath: '/usr/local/bin/agentbox',
+        warnings: [],
+      });
+
+      setupProject();
+
+      const result = await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      expect(result.runs).toHaveLength(1);
+      expect(result.runs[0].testSuite.execution.backend).toBe('container');
+    });
   });
 });

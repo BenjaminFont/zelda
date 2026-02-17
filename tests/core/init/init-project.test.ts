@@ -115,6 +115,14 @@ describe('init/init-project', () => {
     expect(commentLines.length).toBeGreaterThanOrEqual(3);
   });
 
+  it('generated config includes backend field', () => {
+    initProject(tempDir);
+
+    const content = readFileSync(join(tempDir, 'zelda.yaml'), 'utf-8');
+    expect(content).toContain('backend: container');
+    expect(content).toContain('# agentboxPath:');
+  });
+
   it('example suite demonstrates YAML structure clearly', () => {
     initProject(tempDir);
 

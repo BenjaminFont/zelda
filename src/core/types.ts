@@ -32,10 +32,14 @@ export type MetricToggles = {
 
 export type TaskSize = 'small' | 'medium' | 'large' | 'xl';
 
+export type ExecutionBackend = 'container' | 'local';
+
 export type ExecutionDefaults = {
   model?: string;
   maxTurns?: number;
   taskSize?: TaskSize;
+  backend?: ExecutionBackend;
+  agentboxPath?: string;
 };
 
 export type ResolvedConfig = {
@@ -98,6 +102,15 @@ export type ToolsManifest = {
   rules: ToolEntry[];
   subAgents: ToolEntry[];
   mcpConfigs: ToolEntry[];
+};
+
+// ─── Runtime Detection Types ────────────────────────────────────────────────
+
+export type RuntimeDetectionResult = {
+  available: boolean;
+  containerRuntime?: 'docker' | 'podman';
+  agentboxPath?: string;
+  warnings: string[];
 };
 
 // ─── Run Result Types ────────────────────────────────────────────────────────

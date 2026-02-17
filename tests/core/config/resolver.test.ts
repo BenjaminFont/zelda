@@ -102,7 +102,7 @@ describe('config/resolver', () => {
     };
     const resolved = resolveConfig(minimalProject, baseTestSuiteConfig, 'test');
 
-    expect(resolved.execution).toEqual({});
+    expect(resolved.execution).toEqual({ backend: 'container' });
     expect(resolved.metrics).toEqual({});
   });
 
@@ -208,6 +208,55 @@ describe('config/resolver', () => {
       };
       const resolved = resolveConfig(project, suite, 'test');
       expect(resolved.execution.maxTurns).toBe(15);
+    });
+  });
+
+  describe('backend resolution', () => {
+    it('defaults backend to container when not specified', () => {
+      const resolved = resolveConfig(baseProjectConfig, baseTestSuiteConfig, 'test');
+      expect(resolved.execution.backend).toBe('container');
+    });
+
+    it('preserves project-level backend setting', () => {
+      const project: ProjectConfig = {
+        ...baseProjectConfig,
+        execution: { model: 'claude-sonnet-4-5-20250929', backend: 'local' },
+      };
+      const resolved = resolveConfig(project, baseTestSuiteConfig, 'test');
+      expect(resolved.execution.backend).toBe('local');
+    });
+
+    it('test suite backend overrides project backend', () => {
+      const project: ProjectConfig = {
+        ...baseProjectConfig,
+        execution: { model: 'claude-sonnet-4-5-20250929', backend: 'container' },
+      };
+      const suite: TestSuiteConfig = {
+        ...baseTestSuiteConfig,
+        execution: { backend: 'local' },
+      };
+      const resolved = resolveConfig(project, suite, 'test');
+      expect(resolved.execution.backend).toBe('local');
+    });
+
+    it('preserves agentboxPath from project config', () => {
+      const project: ProjectConfig = {
+        ...baseProjectConfig,
+        execution: { model: 'claude-sonnet-4-5-20250929', agentboxPath: '/custom/agentbox' },
+      };
+      const resolved = resolveConfig(project, baseTestSuiteConfig, 'test');
+      expect(resolved.execution.agentboxPath).toBe('/custom/agentbox');
+    });
+
+    it('defaults backend to container when project has no execution', () => {
+      const minimalProject: ProjectConfig = {
+        judgeModel: 'claude-sonnet-4-5-20250929',
+        gatewayUrl: 'https://api.portkey.ai/v1',
+        resultsDir: '.zelda/runs',
+        testDir: 'zelda',
+      };
+      const resolved = resolveConfig(minimalProject, baseTestSuiteConfig, 'test');
+      expect(resolved.execution.backend).toBe('container');
     });
   });
 });

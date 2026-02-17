@@ -25,6 +25,11 @@ export const resolveConfig = (
     mergedExecution.maxTurns = TASK_SIZE_MAP[mergedExecution.taskSize];
   }
 
+  // Default backend to 'container' when not specified
+  if (!mergedExecution.backend) {
+    mergedExecution.backend = 'container';
+  }
+
   return {
     judgeModel: projectConfig.judgeModel,
     gatewayUrl: projectConfig.gatewayUrl,

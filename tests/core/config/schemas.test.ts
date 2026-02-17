@@ -187,6 +187,42 @@ describe('config/schemas', () => {
       const result = ExecutionDefaultsSchema.safeParse({ taskSize: 42 });
       expect(result.success).toBe(false);
     });
+
+    it('validates backend container', () => {
+      const result = ExecutionDefaultsSchema.safeParse({ backend: 'container' });
+      expect(result.success).toBe(true);
+    });
+
+    it('validates backend local', () => {
+      const result = ExecutionDefaultsSchema.safeParse({ backend: 'local' });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects invalid backend value', () => {
+      const result = ExecutionDefaultsSchema.safeParse({ backend: 'cloud' });
+      expect(result.success).toBe(false);
+    });
+
+    it('validates agentboxPath as optional string', () => {
+      const result = ExecutionDefaultsSchema.safeParse({ agentboxPath: '/usr/local/bin/agentbox' });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects non-string agentboxPath', () => {
+      const result = ExecutionDefaultsSchema.safeParse({ agentboxPath: 42 });
+      expect(result.success).toBe(false);
+    });
+
+    it('validates with all fields including backend and agentboxPath', () => {
+      const result = ExecutionDefaultsSchema.safeParse({
+        model: 'test',
+        maxTurns: 5,
+        taskSize: 'medium',
+        backend: 'container',
+        agentboxPath: '/usr/local/bin/agentbox',
+      });
+      expect(result.success).toBe(true);
+    });
   });
 
   describe('MetricTogglesSchema', () => {

@@ -79,6 +79,7 @@ Zelda replaces this with a data-driven feedback loop: define a requirement with 
 ### Growth Features (Post-MVP)
 
 - **Code Quality metric** — Static analysis / linter integration (ESLint, tsc, etc.)
+- **Containerized execution** — Run Claude Code inside a Docker container via agentbox for full host isolation. Optional but recommended. Bind-mounted workspace ensures file changes are visible on host
 - **Config overlay via CLI** — Streamlined A/B testing with alternative `.claude/` directories
 - **Manual evaluation mode** — Evaluate pre-existing code without running Claude Code
 - **`--json` output flag** — Scripting/CI integration
@@ -395,3 +396,34 @@ All commands are standalone (non-interactive). Future enhancement: interactive m
 - FR54: Rules (`.claude/rules/*.md`) are evaluated for output compliance, not transcript invocation — they are implicit context, not invocable tools
 - FR55: Rules with `paths:` YAML frontmatter are only evaluated for compliance when matching files were touched during the session
 - FR56: Workspace creation uses directory copy (not git worktree) when the project directory is a subdirectory of a larger git repository (e.g., monorepo packages)
+
+### Code Quality & Complexity (Phase 2 — Implemented)
+
+- FR57: Developer can configure one or more static analysis commands per test suite (e.g., `npx eslint .`, `npx tsc --noEmit`) that the system executes in the workspace after Claude Code completes
+- FR58: System executes each configured static analysis command and captures exit code, stdout, and stderr
+- FR59: System parses linter/compiler output to extract counts of errors and warnings
+- FR60: System computes a code quality score (0-100) based on error/warning counts (zero errors = 100, scaling down with errors)
+- FR61: Terminal output shows code quality results (per-command pass/fail, error count, warning count, overall score)
+- FR62: Code quality evaluator conforms to the Evaluator interface (EvalContext → Promise<EvalResult> with metric: "codeQuality")
+- FR63: System identifies files touched during the Claude Code session (new or modified) by diffing workspace state before and after execution
+- FR64: System parses touched files to count APP elements (constants, calls, conditions, loops, assignments) using language-agnostic pattern detection
+- FR65: System computes weighted APP total per file using the APP weight table (constants x1, calls x2, conditions x4, loops x5, assignments x6)
+- FR66: System computes per-file APP density (weighted total / lines of code) as the normalized complexity measure
+- FR67: System computes relative APP delta by comparing touched files against their pre-session state — showing whether Claude Code made the code more or less complex
+- FR68: System computes an overall complexity score (0-100) derived from per-file density (lower density = higher score)
+- FR69: Terminal output shows complexity results: per-file breakdown (element counts, density), relative delta vs. pre-session, and overall score
+- FR70: Complexity evaluator conforms to the Evaluator interface (EvalContext → Promise<EvalResult> with metric: "complexity")
+
+### Containerized Execution (Phase 2 — Epic 9)
+
+- FR71: Developer can configure execution backend as `container` or `local` in project config (default: `container`) and override per test suite
+- FR72: When `container` backend is selected, system verifies Docker or Podman is available before execution
+- FR73: System integrates with agentbox (external prerequisite) to manage container lifecycle — start, execute, teardown
+- FR74: System bind-mounts the workspace directory into the container so that all file changes (code, transcripts, results) are immediately visible on the host
+- FR75: System executes Claude Code inside the container via agentbox and the full evaluation pipeline (workspace creation, execution, result persistence) operates on the mounted filesystem
+- FR76: Container is ephemeral — automatically destroyed after execution completes (agentbox `--rm` semantics)
+- FR77: If Docker/Podman is unavailable and backend is `container`, system warns with a recommendation message and falls back to `local` execution
+- FR78: Developer can configure the path to the agentbox binary (auto-detected from PATH if not specified)
+- NFR17: Container startup/teardown overhead is bounded and does not dominate Zelda's own framework time
+- NFR18: No orphaned containers remain after run completion, failure, or interruption (SIGINT/SIGTERM cleanup)
+- NFR19: File changes made inside the container are immediately visible on host via bind mount — no extraction or copy-back step required

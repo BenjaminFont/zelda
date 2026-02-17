@@ -17,6 +17,8 @@ export const ExecutionDefaultsSchema = z.object({
   model: z.string().optional(),
   maxTurns: z.number().int().positive().optional(),
   taskSize: z.enum(['small', 'medium', 'large', 'xl']).optional(),
+  backend: z.enum(['container', 'local']).optional(),
+  agentboxPath: z.string().optional(),
 });
 
 export const MetricTogglesSchema = z.object({
