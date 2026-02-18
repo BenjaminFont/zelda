@@ -104,7 +104,7 @@ development_status:
   # Epic 9: Containerized Execution (Agentbox Integration)
   epic-9: in-progress
   9-1-execution-backend-configuration-and-runtime-detection: done
-  9-2-container-lifecycle-manager: ready-for-dev
+  9-2-container-lifecycle-manager: done
   9-3-container-execution-adapter: ready-for-dev
   9-4-fallback-user-messaging-and-documentation: ready-for-dev
   epic-9-retrospective: optional

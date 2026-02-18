@@ -18,7 +18,8 @@ import { generateRunId } from '../storage/run-id.js';
 import { printRunReport } from '../reporter/terminal-reporter.js';
 import { ZeldaError } from '../errors.js';
 import { detectRuntime, clearRuntimeCache } from '../execution/runtime-detector.js';
-import type { RunResult, EvalResult, EvalContext, ToolsManifest, RuntimeDetectionResult } from '../types.js';
+import { startContainer, stopContainer, registerContainerCleanup } from '../execution/container-manager.js';
+import type { RunResult, EvalResult, EvalContext, ToolsManifest, RuntimeDetectionResult, ContainerInstance } from '../types.js';
 
 export type PipelineOptions = {
   projectDir: string;
@@ -43,9 +44,11 @@ const runSingleSuite = async (
   suitePath: string,
   projectConfig: ReturnType<typeof loadProjectConfig>,
   runtimeResult: RuntimeDetectionResult,
+  activeContainers: Map<string, ContainerInstance>,
 ): Promise<{ run?: RunResult; error?: string }> => {
   const runId = generateRunId(suiteName);
   let workspacePath: string | undefined;
+  let container: ContainerInstance | undefined;
 
   try {
     // Load and validate suite config
@@ -59,6 +62,15 @@ const runSingleSuite = async (
 
     // Create workspace (persists after run for inspection)
     workspacePath = createWorkspace(projectDir, runId);
+
+    // Start container if backend is container and runtime available
+    if (resolvedConfig.execution.backend === 'container' && runtimeResult.available) {
+      container = startContainer({
+        workspacePath,
+        agentboxPath: runtimeResult.agentboxPath!,
+      });
+      activeContainers.set(runId, container);
+    }
 
     // Capture pre-snapshot for complexity evaluation (directory-copy workspaces)
     let preSnapshot: Record<string, string> | undefined;
@@ -134,7 +146,7 @@ const runSingleSuite = async (
     const resultsDir = resolve(projectDir, resolvedConfig.resultsDir);
     persistRun(resultsDir, runResult, transcript);
 
-    // Display report
+    // Display report (results before cleanup — NFR3)
     printRunReport(runResult);
 
     return { run: runResult };
@@ -143,6 +155,12 @@ const runSingleSuite = async (
       ? e.userMessage
       : `Unexpected error: ${e instanceof Error ? e.message : String(e)}`;
     return { error: `[${suiteName}] ${errorMsg}` };
+  } finally {
+    // Cleanup: container FIRST (uses mounted files), then workspace
+    if (container) {
+      stopContainer(container);
+      activeContainers.delete(runId);
+    }
   }
 };
 
@@ -158,6 +176,10 @@ export const runPipeline = async (
   // Only throws for AGENTBOX_PATH_INVALID (config error) — other cases return available: false
   clearRuntimeCache();
   const runtimeResult = detectRuntime({ agentboxPath: projectConfig.execution?.agentboxPath });
+
+  // Track active containers for signal handler cleanup
+  const activeContainers = new Map<string, ContainerInstance>();
+  registerContainerCleanup(activeContainers);
 
   let suites: { name: string; path: string }[];
 
@@ -192,6 +214,7 @@ export const runPipeline = async (
       suite.path,
       projectConfig,
       runtimeResult,
+      activeContainers,
     );
 
     if (result.run) runs.push(result.run);

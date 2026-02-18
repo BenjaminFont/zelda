@@ -58,6 +58,18 @@ vi.mock('../../../src/core/execution/runtime-detector.js', () => ({
   clearRuntimeCache: vi.fn(),
 }));
 
+// Mock container manager to avoid real Docker operations
+vi.mock('../../../src/core/execution/container-manager.js', () => ({
+  startContainer: vi.fn().mockReturnValue({
+    containerId: 'agentbox-test123abc',
+    containerName: 'agentbox-test123abc',
+    workspacePath: '/tmp/workspace',
+    agentboxPath: '/usr/local/bin/agentbox',
+  }),
+  stopContainer: vi.fn().mockReturnValue(true),
+  registerContainerCleanup: vi.fn(),
+}));
+
 describe('pipeline/run-pipeline', () => {
   let tempDir: string;
 
@@ -288,6 +300,105 @@ describe('pipeline/run-pipeline', () => {
 
       expect(result.runs).toHaveLength(1);
       expect(result.runs[0].testSuite.execution.backend).toBe('container');
+    });
+  });
+
+  describe('container lifecycle integration', () => {
+    it('starts container when backend is container and runtime available', async () => {
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      vi.mocked(detectRuntime).mockReturnValue({
+        available: true,
+        containerRuntime: 'docker',
+        agentboxPath: '/usr/local/bin/agentbox',
+        warnings: [],
+      });
+
+      setupProject();
+      await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      const { startContainer } = await import('../../../src/core/execution/container-manager.js');
+      expect(startContainer).toHaveBeenCalledTimes(1);
+      expect(startContainer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentboxPath: '/usr/local/bin/agentbox',
+        }),
+      );
+    });
+
+    it('does not start container when runtime unavailable', async () => {
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      vi.mocked(detectRuntime).mockReturnValue({
+        available: false,
+        warnings: ['Docker/Podman not found. Running in local mode.'],
+      });
+
+      setupProject();
+      await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      const { startContainer } = await import('../../../src/core/execution/container-manager.js');
+      expect(startContainer).not.toHaveBeenCalled();
+    });
+
+    it('stops container after execution completes', async () => {
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      vi.mocked(detectRuntime).mockReturnValue({
+        available: true,
+        containerRuntime: 'docker',
+        agentboxPath: '/usr/local/bin/agentbox',
+        warnings: [],
+      });
+
+      setupProject();
+      await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      const { stopContainer } = await import('../../../src/core/execution/container-manager.js');
+      expect(stopContainer).toHaveBeenCalledTimes(1);
+    });
+
+    it('registers container cleanup signal handler', async () => {
+      setupProject();
+      await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      const { registerContainerCleanup } = await import('../../../src/core/execution/container-manager.js');
+      expect(registerContainerCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('each suite gets its own container', async () => {
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      vi.mocked(detectRuntime).mockReturnValue({
+        available: true,
+        containerRuntime: 'docker',
+        agentboxPath: '/usr/local/bin/agentbox',
+        warnings: [],
+      });
+
+      setupProject({ suites: ['api', 'cli'] });
+      await runPipeline({ projectDir: tempDir });
+
+      const { startContainer, stopContainer } = await import('../../../src/core/execution/container-manager.js');
+      expect(startContainer).toHaveBeenCalledTimes(2);
+      expect(stopContainer).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops container even when execution fails', async () => {
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      vi.mocked(detectRuntime).mockReturnValue({
+        available: true,
+        containerRuntime: 'docker',
+        agentboxPath: '/usr/local/bin/agentbox',
+        warnings: [],
+      });
+
+      const { executeSession } = await import('../../../src/core/execution/execution-client.js');
+      vi.mocked(executeSession).mockRejectedValueOnce(new Error('execution failed'));
+
+      setupProject();
+      const result = await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      expect(result.errors).toHaveLength(1);
+
+      const { stopContainer } = await import('../../../src/core/execution/container-manager.js');
+      expect(stopContainer).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -104,6 +104,21 @@ export type ToolsManifest = {
   mcpConfigs: ToolEntry[];
 };
 
+// ─── Container Types ────────────────────────────────────────────────────────
+
+export type ContainerInstance = {
+  containerId: string;
+  containerName: string;
+  workspacePath: string;
+  agentboxPath: string;
+};
+
+export type ContainerStartOptions = {
+  workspacePath: string;
+  agentboxPath: string;
+  envVars?: Record<string, string>;
+};
+
 // ─── Runtime Detection Types ────────────────────────────────────────────────
 
 export type RuntimeDetectionResult = {
