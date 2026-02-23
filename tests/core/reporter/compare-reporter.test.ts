@@ -86,4 +86,36 @@ describe('reporter/compare-reporter', () => {
     const emojiPattern = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
     expect(emojiPattern.test(output)).toBe(false);
   });
+
+  it('shows note when execution modes differ', () => {
+    const comparison: ComparisonResult = {
+      runA: { ...makeRun('run-a', 'test'), executionBackend: 'container' },
+      runB: { ...makeRun('run-b', 'test'), executionBackend: 'local' },
+      deltas: [],
+    };
+    const output = stripAnsi(renderComparison(comparison));
+    expect(output).toContain('Note:');
+    expect(output).toContain('different execution modes');
+    expect(output).toContain('container vs local');
+  });
+
+  it('does not show note when execution modes are the same', () => {
+    const comparison: ComparisonResult = {
+      runA: { ...makeRun('run-a', 'test'), executionBackend: 'container' },
+      runB: { ...makeRun('run-b', 'test'), executionBackend: 'container' },
+      deltas: [],
+    };
+    const output = stripAnsi(renderComparison(comparison));
+    expect(output).not.toContain('different execution modes');
+  });
+
+  it('defaults to local when executionBackend is not set', () => {
+    const comparison: ComparisonResult = {
+      runA: makeRun('run-a', 'test'), // no executionBackend
+      runB: makeRun('run-b', 'test'), // no executionBackend
+      deltas: [],
+    };
+    const output = stripAnsi(renderComparison(comparison));
+    expect(output).not.toContain('different execution modes');
+  });
 });

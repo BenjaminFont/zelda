@@ -5,7 +5,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { loadProjectConfig, loadTestSuite } from '../config/loader.js';
 import { resolveConfig } from '../config/resolver.js';
 import { createWorkspace } from '../workspace/manager.js';
-import { executeSession } from '../execution/execution-client.js';
+import { resolveExecutionBackend } from '../execution/container-adapter.js';
 import { efficiencyEvaluator } from '../evaluators/efficiency.js';
 import { fulfillmentEvaluator } from '../evaluators/fulfillment.js';
 import { toolUsageEvaluator } from '../evaluators/tool-usage.js';
@@ -81,8 +81,12 @@ const runSingleSuite = async (
       }
     }
 
-    // Execute Claude Code session
-    const { transcript } = await executeSession({
+    // Execute Claude Code session (local or container backend)
+    const executionBackend = resolveExecutionBackend(
+      resolvedConfig.execution.backend ?? 'local',
+      container,
+    );
+    const { transcript } = await executionBackend({
       prompt: resolvedConfig.prompt,
       workspacePath,
       model: resolvedConfig.execution.model,
@@ -140,6 +144,7 @@ const runSingleSuite = async (
       },
       metrics,
       workspacePath,
+      executionBackend: resolvedConfig.execution.backend ?? 'local',
     };
 
     // Persist results
@@ -176,6 +181,14 @@ export const runPipeline = async (
   // Only throws for AGENTBOX_PATH_INVALID (config error) — other cases return available: false
   clearRuntimeCache();
   const runtimeResult = detectRuntime({ agentboxPath: projectConfig.execution?.agentboxPath });
+
+  // Display runtime warnings (Docker/Podman not found, agentbox not found)
+  if (runtimeResult.warnings.length > 0) {
+    const chalk = (await import('chalk')).default;
+    for (const warning of runtimeResult.warnings) {
+      console.warn(chalk.yellow(warning));
+    }
+  }
 
   // Track active containers for signal handler cleanup
   const activeContainers = new Map<string, ContainerInstance>();

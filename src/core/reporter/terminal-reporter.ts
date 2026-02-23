@@ -197,6 +197,13 @@ export const renderRunHeader = (run: RunResult): string => {
   lines.push(`  ${chalk.cyan(padLabel('Test Suite'))} ${run.testSuite.name}`);
   lines.push(`  ${chalk.cyan(padLabel('Timestamp'))} ${chalk.dim(run.timestamp)}`);
   lines.push(`  ${chalk.cyan(padLabel('Model'))} ${run.testSuite.execution.model ?? chalk.dim('default')}`);
+
+  // Execution mode indicator
+  const backendLabel = run.executionBackend === 'container'
+    ? chalk.green('container')
+    : chalk.dim('local');
+  lines.push(`  ${chalk.cyan(padLabel('Executed in'))} ${backendLabel}`);
+
   if (run.workspacePath) {
     lines.push(`  ${chalk.cyan(padLabel('Workspace'))} ${chalk.dim(run.workspacePath)}`);
   }

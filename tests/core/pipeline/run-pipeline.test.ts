@@ -5,23 +5,28 @@ import { tmpdir } from 'node:os';
 import { stringify as stringifyYaml } from 'yaml';
 import { runPipeline } from '../../../src/core/pipeline/run-pipeline.js';
 
-// Mock the execution client to avoid real Claude SDK calls
-vi.mock('../../../src/core/execution/execution-client.js', () => ({
-  executeSession: vi.fn().mockResolvedValue({
-    transcript: {
-      messages: [
-        { role: 'assistant', content: 'Done building the API' },
-      ],
-      metadata: {
-        costUsd: 0.05,
-        inputTokens: 500,
-        outputTokens: 1000,
-        turnCount: 3,
-        durationMs: 15000,
-        errorCount: 0,
-      },
+const { mockExecutionBackend } = vi.hoisted(() => {
+  const mockTranscript = {
+    messages: [
+      { role: 'assistant', content: 'Done building the API' },
+    ],
+    metadata: {
+      costUsd: 0.05,
+      inputTokens: 500,
+      outputTokens: 1000,
+      turnCount: 3,
+      durationMs: 15000,
+      errorCount: 0,
     },
-  }),
+  };
+  return {
+    mockExecutionBackend: vi.fn().mockResolvedValue({ transcript: mockTranscript }),
+  };
+});
+
+// Mock container adapter — resolveExecutionBackend returns our mock backend
+vi.mock('../../../src/core/execution/container-adapter.js', () => ({
+  resolveExecutionBackend: vi.fn().mockReturnValue(mockExecutionBackend),
 }));
 
 // Mock workspace manager to avoid git worktree operations
@@ -253,6 +258,29 @@ describe('pipeline/run-pipeline', () => {
     expect(result.runs[0].timestamp <= after).toBe(true);
   });
 
+  it('sets executionBackend to local when runtime unavailable', async () => {
+    setupProject();
+
+    const result = await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+    expect(result.runs[0].executionBackend).toBe('local');
+  });
+
+  it('sets executionBackend to container when runtime available', async () => {
+    const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+    vi.mocked(detectRuntime).mockReturnValue({
+      available: true,
+      containerRuntime: 'docker',
+      agentboxPath: '/usr/local/bin/agentbox',
+      warnings: [],
+    });
+
+    setupProject();
+    const result = await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+    expect(result.runs[0].executionBackend).toBe('container');
+  });
+
   describe('runtime detection integration', () => {
     it('calls detectRuntime before running suites', async () => {
       setupProject();
@@ -273,6 +301,12 @@ describe('pipeline/run-pipeline', () => {
     });
 
     it('falls back to local when container runtime not available', async () => {
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      vi.mocked(detectRuntime).mockReturnValue({
+        available: false,
+        warnings: ['Docker/Podman not found. Running in local mode.'],
+      });
+
       setupProject();
 
       // Project config defaults backend to 'container' via resolver
@@ -389,8 +423,7 @@ describe('pipeline/run-pipeline', () => {
         warnings: [],
       });
 
-      const { executeSession } = await import('../../../src/core/execution/execution-client.js');
-      vi.mocked(executeSession).mockRejectedValueOnce(new Error('execution failed'));
+      mockExecutionBackend.mockRejectedValueOnce(new Error('execution failed'));
 
       setupProject();
       const result = await runPipeline({ projectDir: tempDir, testName: 'api' });
@@ -399,6 +432,69 @@ describe('pipeline/run-pipeline', () => {
 
       const { stopContainer } = await import('../../../src/core/execution/container-manager.js');
       expect(stopContainer).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('execution backend integration', () => {
+    it('calls resolveExecutionBackend with local when runtime unavailable', async () => {
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      vi.mocked(detectRuntime).mockReturnValue({
+        available: false,
+        warnings: ['Docker/Podman not found. Running in local mode.'],
+      });
+
+      setupProject();
+
+      await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      const { resolveExecutionBackend } = await import('../../../src/core/execution/container-adapter.js');
+      expect(resolveExecutionBackend).toHaveBeenCalledWith('local', undefined);
+    });
+
+    it('calls resolveExecutionBackend with container and instance when runtime available', async () => {
+      const { detectRuntime } = await import('../../../src/core/execution/runtime-detector.js');
+      vi.mocked(detectRuntime).mockReturnValue({
+        available: true,
+        containerRuntime: 'docker',
+        agentboxPath: '/usr/local/bin/agentbox',
+        warnings: [],
+      });
+
+      setupProject();
+      await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      const { resolveExecutionBackend } = await import('../../../src/core/execution/container-adapter.js');
+      expect(resolveExecutionBackend).toHaveBeenCalledWith(
+        'container',
+        expect.objectContaining({
+          containerId: 'agentbox-test123abc',
+          containerName: 'agentbox-test123abc',
+        }),
+      );
+    });
+
+    it('passes prompt and execution params to resolved backend', async () => {
+      setupProject();
+
+      await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      expect(mockExecutionBackend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: 'Build a api',
+          model: 'claude-sonnet-4-5-20250929',
+        }),
+      );
+    });
+
+    it('evaluators receive transcript from resolved backend', async () => {
+      setupProject();
+
+      const result = await runPipeline({ projectDir: tempDir, testName: 'api' });
+
+      expect(result.runs).toHaveLength(1);
+      expect(result.runs[0].metrics.efficiency).toBeDefined();
+      // Transcript came from mockExecutionBackend, same format works for evaluators
+      expect(result.runs[0].metrics.efficiency.score).toBeGreaterThanOrEqual(0);
     });
   });
 });

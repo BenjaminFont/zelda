@@ -61,6 +61,14 @@ export const renderComparison = (comparison: ComparisonResult): string => {
   // Suite info
   lines.push(`  ${chalk.dim('Run A:')} ${chalk.dim(runA.id)} (${runA.testSuite.name})`);
   lines.push(`  ${chalk.dim('Run B:')} ${chalk.dim(runB.id)} (${runB.testSuite.name})`);
+
+  // Execution mode difference warning
+  const modeA = runA.executionBackend ?? 'local';
+  const modeB = runB.executionBackend ?? 'local';
+  if (modeA !== modeB) {
+    lines.push(`  ${chalk.yellow('Note:')} Runs used different execution modes (${modeA} vs ${modeB})`);
+  }
+
   lines.push('');
 
   return lines.join('\n');

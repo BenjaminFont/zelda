@@ -88,6 +88,21 @@ export type SessionTranscript = {
   metadata: SessionMetadata;
 };
 
+// ─── Execution Types ────────────────────────────────────────────────────────
+
+export type ExecutionParams = {
+  prompt: string;
+  workspacePath: string;
+  model?: string;
+  maxTurns?: number;
+};
+
+export type ExecutionResult = {
+  transcript: SessionTranscript;
+};
+
+export type ExecutionBackendFn = (params: ExecutionParams) => Promise<ExecutionResult>;
+
 // ─── Tools Manifest Types ────────────────────────────────────────────────────
 
 export type ToolEntry = {
@@ -144,4 +159,5 @@ export type RunResult = {
   testSuite: TestSuiteSnapshot;
   metrics: Record<string, EvalResult>;
   workspacePath?: string;
+  executionBackend?: 'container' | 'local';
 };

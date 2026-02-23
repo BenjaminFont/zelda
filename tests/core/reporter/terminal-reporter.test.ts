@@ -79,6 +79,27 @@ describe('reporter/terminal-reporter', () => {
       const output = stripAnsi(renderRunHeader(makeRunResult()));
       expect(output).not.toContain('Workspace');
     });
+
+    it('shows execution mode in run header', () => {
+      const run = makeRunResult({ executionBackend: 'container' });
+      const output = stripAnsi(renderRunHeader(run));
+      expect(output).toContain('Executed in');
+      expect(output).toContain('container');
+    });
+
+    it('shows local mode when executionBackend is local', () => {
+      const run = makeRunResult({ executionBackend: 'local' });
+      const output = stripAnsi(renderRunHeader(run));
+      expect(output).toContain('Executed in');
+      expect(output).toContain('local');
+    });
+
+    it('defaults to local when executionBackend is not set', () => {
+      const run = makeRunResult();
+      const output = stripAnsi(renderRunHeader(run));
+      expect(output).toContain('Executed in');
+      expect(output).toContain('local');
+    });
   });
 
   describe('renderEvalResult (efficiency)', () => {
