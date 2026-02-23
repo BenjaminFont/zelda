@@ -23,6 +23,7 @@ zelda run example
 
 - Node.js >= 20
 - An Anthropic API key
+- **Optional (recommended):** Docker or Podman + [agentbox](https://github.com/fletchgqc/agentbox) for containerized execution
 
 ### Environment Variables
 
@@ -64,9 +65,12 @@ testDir: zelda
 
 # Default execution settings (can be overridden per test suite)
 # taskSize: small (10 turns), medium (25), large (50), xl (100)
+# backend: container (recommended, requires Docker + agentbox) or local
 execution:
   model: claude-sonnet-4-5-20250929
   taskSize: medium
+  backend: container
+  # agentboxPath: /path/to/agentbox  # optional, auto-detected from PATH
 
 # Default metric toggles (can be overridden per test suite)
 metrics:
@@ -94,6 +98,7 @@ acceptanceCriteria:
 # Override execution settings for this suite
 execution:
   taskSize: small    # or: maxTurns: 15 (explicit maxTurns overrides taskSize)
+  backend: local     # optional: override container/local mode for this suite
 
 # Override which metrics are evaluated
 metrics:
@@ -120,6 +125,55 @@ Instead of specifying raw `maxTurns`, use `taskSize` for a human-friendly abstra
 | `xl`     | 100      | Complex app from scratch, full test suite |
 
 If both `taskSize` and `maxTurns` are set, explicit `maxTurns` takes priority. A test suite's `taskSize` overrides any project-level `maxTurns`.
+
+### Execution Modes
+
+Zelda supports two execution backends:
+
+#### Container Mode (Recommended)
+
+Runs Claude Code inside an isolated Docker/Podman container via [agentbox](https://github.com/fletchgqc/agentbox). This provides host isolation and consistent evaluation environments.
+
+**Setup:**
+```bash
+# Install Docker or Podman
+# Then clone and install agentbox:
+git clone https://github.com/fletchgqc/agentbox
+chmod +x agentbox/agentbox
+# Add agentbox directory to your PATH
+export PATH=$PATH:/path/to/agentbox
+```
+
+**Configuration:**
+```yaml
+execution:
+  backend: container
+  # agentboxPath: /path/to/agentbox  # optional if agentbox is in PATH
+```
+
+**Behavior:**
+- Creates a container for each evaluation run
+- Mounts the workspace into the container
+- Runs Claude Code CLI inside the container
+- Automatically cleans up containers after execution
+- Falls back to local mode if Docker/Podman is not available (with a warning)
+
+#### Local Mode
+
+Runs Claude Code directly on your host machine. No container isolation.
+
+**Configuration:**
+```yaml
+execution:
+  backend: local
+```
+
+**Use when:**
+- Docker/Podman is not available
+- You need to debug container issues
+- Your evaluation doesn't require host isolation
+
+**Note:** The terminal reporter displays which execution mode was used for each run (shown as "Executed in: container" or "Executed in: local").
 
 ## Commands
 
@@ -148,11 +202,14 @@ zelda run example    # run only zelda/test-example.yaml
 
 The pipeline:
 1. Loads and validates config
-2. Creates an isolated workspace (git worktree at repo root, or directory copy for subdirectories/non-git)
-3. Executes Claude Code with your prompt
-4. Runs enabled evaluators
-5. Persists results to `.zelda/runs/<run-id>/`
-6. Displays a colored terminal report (includes workspace path)
+2. Detects container runtime (Docker/Podman) and agentbox availability
+3. Creates an isolated workspace (git worktree at repo root, or directory copy for subdirectories/non-git)
+4. Starts a container (if backend is `container` and runtime is available)
+5. Executes Claude Code with your prompt (in container or locally)
+6. Runs enabled evaluators
+7. Stops and cleans up container (if used)
+8. Persists results to `.zelda/runs/<run-id>/`
+9. Displays a colored terminal report (includes workspace path and execution mode)
 
 ### `zelda apply <run-id>`
 
