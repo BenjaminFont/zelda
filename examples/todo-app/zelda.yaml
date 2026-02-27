@@ -1,0 +1,28 @@
+# Zelda configuration for todo-app example
+
+judgeModel: claude-sonnet-4-5-20250929
+
+# AI gateway URL (omit /v1 suffix)
+gatewayUrl: https://api.anthropic.com
+
+# Directory where run results are stored
+resultsDir: .zelda/runs
+
+# Directory containing test suite YAML files
+testDir: zelda
+
+# Default execution settings
+execution:
+  model: claude-sonnet-4-5-20250929
+  taskSize: xl
+  backend: /Users/benji/Desktop/Projects/agentbox/agentbox
+  # agentboxPath: /path/to/agentbox  # optional, auto-detected from PATH
+
+# Default metric toggles
+metrics:
+  efficiency: true
+  requirementFulfillment: true
+  toolUsage: true
+  functionalCorrectness: true
+  codeQuality: true
+  complexity: true

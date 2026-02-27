@@ -1,0 +1,109 @@
+prompt: |
+  Build a full-stack to-do list application from scratch.
+
+  ## Backend (Express + TypeScript)
+
+  Create a REST API in src/server/ with the following:
+
+  - src/server/app.ts — Express app setup with JSON parsing and CORS
+  - src/server/routes/todos.ts — CRUD routes under /api/todos
+  - src/server/models/todo.ts — Todo type and in-memory store (Map-based)
+  - src/server/middleware/error-handler.ts — global error handling middleware
+  - src/server/middleware/request-logger.ts — logs method, path, status, duration
+  - src/server/index.ts — starts server on PORT env var (default 3000)
+
+  Todo shape:
+    { id: string, title: string, description?: string, completed: boolean,
+      priority: "low" | "medium" | "high", createdAt: string, updatedAt: string }
+
+  Endpoints:
+    GET    /api/todos          — list all, supports ?completed=true/false and ?priority=low/medium/high filters
+    GET    /api/todos/:id      — get by id, 404 if missing
+    POST   /api/todos          — create, validate title is non-empty string, return 201
+    PUT    /api/todos/:id      — full update, 404 if missing
+    PATCH  /api/todos/:id      — partial update (e.g. toggle completed), 404 if missing
+    DELETE /api/todos/:id      — delete, 404 if missing
+    POST   /api/todos/bulk     — accept { action: "complete" | "delete", ids: string[] }
+    GET    /api/stats           — return { total, completed, pending, byPriority: {low, medium, high} }
+
+  Validation:
+    - POST/PUT must have title (non-empty string)
+    - Priority must be one of the three allowed values if provided
+    - Return 400 with { error: string } on validation failure
+
+  ## Frontend (vanilla HTML + CSS + JS)
+
+  Create a single-page app in public/:
+
+  - public/index.html — semantic HTML structure
+  - public/styles.css — clean, modern styling with CSS variables for theming
+  - public/app.js — all client logic
+
+  UI requirements:
+    - Header with app title and todo count summary (e.g. "3 of 7 completed")
+    - Add todo form: title (required), description (optional), priority dropdown
+    - Todo list with each item showing title, description, priority badge, created date
+    - Checkbox to toggle completed (with strikethrough styling)
+    - Delete button per todo (with confirmation)
+    - Filter bar: All / Active / Completed tabs + priority filter dropdown
+    - Bulk actions: "Complete All" and "Delete Completed" buttons
+    - Stats section showing counts by priority
+    - Empty state message when no todos exist
+    - Loading spinner during API calls
+    - Error toast/notification on API failures
+    - Responsive layout (works on mobile widths down to 375px)
+
+  ## Testing
+
+  Write comprehensive tests in tests/:
+    - tests/server/routes/todos.test.ts — test all CRUD endpoints and edge cases
+    - tests/server/models/todo.test.ts — test the in-memory store operations
+    - tests/server/middleware/error-handler.test.ts — test error formatting
+    - tests/server/routes/stats.test.ts — test stats endpoint with various todo states
+    - tests/server/routes/bulk.test.ts — test bulk operations
+
+  Use vitest and supertest for API testing. Aim for >80% coverage.
+
+  ## Setup
+
+  - Initialize with package.json including all needed scripts
+  - tsconfig.json for TypeScript compilation
+  - npm scripts: "dev", "build", "start", "test", "test:coverage"
+  - The server should serve the public/ folder as static files
+  - Add a vitest.config.ts with coverage configuration
+  - Install all required dependencies (express, cors, uuid, vitest, supertest,
+    @types/express, @types/cors, @types/supertest, typescript, tsx)
+  - Do NOT use any ORM or database — purely in-memory storage
+  - run /run-tests after implementation
+  - CRITICAL: use the code-reviewer subagent to review code after implementation
+
+acceptanceCriteria:
+  - All CRUD endpoints work correctly (create, read, update, delete)
+  - Filtering by completed status and priority works
+  - Bulk complete and bulk delete operations work
+  - Stats endpoint returns correct counts
+  - Validation rejects invalid input with 400 status
+  - 404 returned for non-existent todo IDs
+  - Frontend renders todos and updates dynamically without page reload
+  - Frontend filter tabs switch between All/Active/Completed views
+  - Frontend is responsive at 375px width
+  - Error handling middleware catches and formats errors
+  - Tests achieve at least 80% code coverage
+
+metrics:
+  efficiency: true
+  requirementFulfillment: true
+  toolUsage: true
+  functionalCorrectness: true
+  codeQuality: true
+  complexity: true
+
+execution:
+  taskSize: xl
+
+buildCommand: npm run build
+testCommand: npm run test:coverage
+coverageThreshold: 80
+complexityThreshold: 25
+staticAnalysis:
+  - npx tsc --noEmit
