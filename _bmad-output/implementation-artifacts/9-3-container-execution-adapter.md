@@ -1,6 +1,6 @@
 # Story 9.3: Container Execution Adapter
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,28 +21,28 @@ so that the evaluation pipeline works identically regardless of execution backen
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Extract execution interface (AC: #3, #4, #6)
-  - [ ] 1.1 Define `ExecutionBackend` type in `types.ts`: function signature `(params: ExecutionParams) => Promise<ExecutionResult>`
-  - [ ] 1.2 Verify existing `executeSession()` already conforms to this signature (it does)
-  - [ ] 1.3 Create `resolveExecutionBackend()` factory function that returns the appropriate backend based on config
-- [ ] Task 2: Create container execution adapter (AC: #1, #2, #3, #5)
-  - [ ] 2.1 Create `src/core/execution/container-adapter.ts`
-  - [ ] 2.2 Implement `executeSessionInContainer(params: ExecutionParams): Promise<ExecutionResult>`
-  - [ ] 2.3 Spawn Claude Code CLI inside container via agentbox, capture output
-  - [ ] 2.4 Parse CLI output into `SessionTranscript` (messages + metadata)
-  - [ ] 2.5 Pass `ANTHROPIC_API_KEY` and required env vars through agentbox
-  - [ ] 2.6 Handle execution errors with `ExecutionError` (same codes as local)
-  - [ ] 2.7 Create test suite `tests/core/execution/container-adapter.test.ts`
-- [ ] Task 3: Integrate adapter into pipeline (AC: #4, #6)
-  - [ ] 3.1 Update `run-pipeline.ts` to call `resolveExecutionBackend()` based on resolved config
-  - [ ] 3.2 Replace direct `executeSession()` call with resolved backend function
-  - [ ] 3.3 Ensure local mode is unchanged (no regression)
-  - [ ] 3.4 Add pipeline integration tests for both backends
-- [ ] Task 4: Transcript parsing from container output (AC: #2, #3)
-  - [ ] 4.1 Implement CLI output parser that transforms Claude Code CLI JSON output into `SessionTranscript`
-  - [ ] 4.2 Extract `TranscriptMessage[]` from CLI output (role, content, toolCalls)
-  - [ ] 4.3 Extract `SessionMetadata` from CLI output (cost, tokens, turns, duration, errors)
-  - [ ] 4.4 Add parser tests with sample CLI output fixtures
+- [x] Task 1: Extract execution interface (AC: #3, #4, #6)
+  - [x] 1.1 Define `ExecutionBackend` type in `types.ts`: function signature `(params: ExecutionParams) => Promise<ExecutionResult>`
+  - [x] 1.2 Verify existing `executeSession()` already conforms to this signature (it does)
+  - [x] 1.3 Create `resolveExecutionBackend()` factory function that returns the appropriate backend based on config
+- [x] Task 2: Create container execution adapter (AC: #1, #2, #3, #5)
+  - [x] 2.1 Create `src/core/execution/container-adapter.ts`
+  - [x] 2.2 Implement `executeSessionInContainer(params: ExecutionParams): Promise<ExecutionResult>`
+  - [x] 2.3 Spawn Claude Code CLI inside container via agentbox, capture output
+  - [x] 2.4 Parse CLI output into `SessionTranscript` (messages + metadata)
+  - [x] 2.5 Pass `ANTHROPIC_API_KEY` and required env vars through agentbox
+  - [x] 2.6 Handle execution errors with `ExecutionError` (same codes as local)
+  - [x] 2.7 Create test suite `tests/core/execution/container-adapter.test.ts`
+- [x] Task 3: Integrate adapter into pipeline (AC: #4, #6)
+  - [x] 3.1 Update `run-pipeline.ts` to call `resolveExecutionBackend()` based on resolved config
+  - [x] 3.2 Replace direct `executeSession()` call with resolved backend function
+  - [x] 3.3 Ensure local mode is unchanged (no regression)
+  - [x] 3.4 Add pipeline integration tests for both backends
+- [x] Task 4: Transcript parsing from container output (AC: #2, #3)
+  - [x] 4.1 Implement CLI output parser that transforms Claude Code CLI JSON output into `SessionTranscript`
+  - [x] 4.2 Extract `TranscriptMessage[]` from CLI output (role, content, toolCalls)
+  - [x] 4.3 Extract `SessionMetadata` from CLI output (cost, tokens, turns, duration, errors)
+  - [x] 4.4 Add parser tests with sample CLI output fixtures
 
 ## Dev Notes
 

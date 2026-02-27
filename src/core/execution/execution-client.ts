@@ -8,18 +8,11 @@ import type {
   TranscriptMessage,
   ToolCall,
   SessionMetadata,
+  ExecutionParams,
+  ExecutionResult,
 } from '../types.js';
 
-export type ExecutionParams = {
-  prompt: string;
-  workspacePath: string;
-  model?: string;
-  maxTurns?: number;
-};
-
-export type ExecutionResult = {
-  transcript: SessionTranscript;
-};
+export type { ExecutionParams, ExecutionResult };
 
 export const executeSession = async (
   params: ExecutionParams,
